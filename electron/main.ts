@@ -30,6 +30,7 @@ import {
   pollVideoTask,
   testNewApiVideoConnection,
 } from "../src/core/video-providers.js";
+import { createWorkflowRun, getWorkflowDefinition } from "../src/shared/workflows.js";
 import { loadState, saveState } from "./store.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -60,7 +61,26 @@ function exposeState() {
 }
 
 function replaceProject(project: Project) {
-  state.projects = state.projects.map((item) => (item.id === project.id ? project : item));
+  const nextProject = refreshWorkflowRun(project);
+  state.projects = state.projects.map((item) => (item.id === project.id ? nextProject : item));
+}
+
+function refreshWorkflowRun(project: Project): Project {
+  const imageCount = project.shots.reduce(
+    (count, shot) => count + shot.assets.filter((asset) => asset.kind === "image").length,
+    0,
+  );
+  const videoCount =
+    state.jobs.filter((job) => job.projectId === project.id).length ||
+    project.shots.filter((shot) => shot.videoJobId || shot.videoStatus !== "idle").length;
+  return {
+    ...project,
+    workflowRun: createWorkflowRun(project.workflowId, {
+      planned: project.shots.length > 0,
+      imageCount,
+      videoCount,
+    }),
+  };
 }
 
 async function createWindow() {
@@ -117,7 +137,9 @@ function registerIpcHandlers() {
     state.projects = [project, ...state.projects];
     state.activeProjectId = project.id;
     await persist();
-    addLog("success", `已创建项目：${project.name}`);
+    addLog("success", `已创建项目：${project.name}`, {
+      workflow: getWorkflowDefinition(project.workflowId).name,
+    });
     return exposeState();
   });
 
@@ -147,7 +169,12 @@ function registerIpcHandlers() {
   ipcMain.handle("agent:generate-storyboard", async (_event, projectId: string) => {
     const project = state.projects.find((item) => item.id === projectId);
     if (!project) throw new Error("项目不存在");
-    addLog("info", "Agent 开始生成剧本结构与分镜", { projectId });
+    const workflow = getWorkflowDefinition(project.workflowId);
+    addLog("info", `Agent 开始执行${workflow.shortName}工作流`, {
+      projectId,
+      workflow: workflow.name,
+      source: workflow.sourceProject,
+    });
     const settings = decryptSettingsForUse(state.settings);
     const result = await generateStoryboardWithNewApi(project, settings.newApi.analysis);
     const updated: Project = {
@@ -158,9 +185,10 @@ function registerIpcHandlers() {
     };
     replaceProject(updated);
     await persist();
-    addLog("success", `Agent 已生成 ${result.shots.length} 个镜头`, {
+    addLog("success", `Agent 已按${workflow.shortName}工作流生成 ${result.shots.length} 个镜头`, {
       characters: result.characters.length,
       shots: result.shots.length,
+      workflow: workflow.name,
     });
     return exposeState();
   });

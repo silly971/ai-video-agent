@@ -371,6 +371,13 @@ select:focus {
   line-height: 1.7;
 }
 
+.inline-help {
+  margin: 8px 0 0;
+  color: #6f6a60;
+  line-height: 1.55;
+  max-width: 760px;
+}
+
 .workflow {
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -399,6 +406,76 @@ select:focus {
   background: #f4f1e8;
   border-radius: 6px;
   padding: 10px;
+}
+
+.workflow-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.workflow-meta span,
+.checkpoint-list span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+  padding: 10px;
+  background: #f4f1e8;
+  color: #514b42;
+}
+
+.stage-lane {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.stage-chip {
+  min-width: 0;
+  border: 1px solid #ddd9cc;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fffdfa;
+}
+
+.stage-chip strong,
+.stage-chip span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-chip span {
+  margin-top: 4px;
+  color: #6f6a60;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.stage-chip.done {
+  border-color: #a7d7a6;
+  background: #f0faec;
+}
+
+.stage-chip.ready,
+.stage-chip.running {
+  border-color: #a8dcd5;
+  background: #eef9f6;
+}
+
+.stage-chip.failed {
+  border-color: #efb7ad;
+  background: #fff0ed;
+}
+
+.checkpoint-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .two-column {
@@ -443,6 +520,51 @@ select:focus {
 
 .field.wide {
   grid-column: 1 / -1;
+}
+
+.workflow-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workflow-option {
+  display: grid;
+  gap: 5px;
+  min-height: 116px;
+  padding: 12px;
+  border: 1px solid #ddd9cc;
+  border-radius: 8px;
+  background: #fffdfa;
+  color: #25231f;
+  text-align: left;
+}
+
+.workflow-option:hover {
+  border-color: #7cbdb6;
+}
+
+.workflow-option.active {
+  border-color: #0f766e;
+  background: #e8f4f1;
+  box-shadow: inset 0 0 0 1px #0f766e;
+}
+
+.workflow-option strong,
+.workflow-option span,
+.workflow-option small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workflow-option span {
+  font-weight: 800;
+}
+
+.workflow-option small {
+  color: #6f6a60;
+  line-height: 1.35;
 }
 
 .list,
@@ -561,6 +683,41 @@ select:focus {
   flex-wrap: wrap;
   gap: 8px;
   min-height: 28px;
+}
+
+.shot-notes {
+  display: grid;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f4f1e8;
+  color: #514b42;
+}
+
+.shot-notes p,
+.shot-notes small {
+  margin: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.shot-notes small {
+  color: #6f6a60;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-row span {
+  border-radius: 6px;
+  padding: 4px 7px;
+  background: #15171a;
+  color: #f4f1e8;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .asset-chip {
@@ -752,7 +909,9 @@ select:focus {
   .hero-panel,
   .two-column,
   .two-column.wide-left,
-  .settings-grid {
+  .settings-grid,
+  .workflow-meta,
+  .workflow-picker {
     grid-template-columns: 1fr;
   }
 }

@@ -7,6 +7,7 @@ import {
   Film,
   FolderPlus,
   Gauge,
+  Route,
   Link,
   ListVideo,
   Loader2,
@@ -34,11 +35,13 @@ import type {
   Shot,
   VideoJob,
 } from "../shared/schema";
+import { WORKFLOW_DEFINITIONS, getWorkflowDefinition } from "../shared/workflows";
 
 type View = "studio" | "projects" | "storyboard" | "video" | "settings" | "logs";
 
 const emptyDraft: CreateProjectDraft = {
   name: "",
+  workflowId: "shortify-linear",
   idea: "",
   audience: "短视频观众",
   style: "电影感、节奏清晰、真实自然、适合短视频平台",
@@ -315,20 +318,23 @@ function Studio({
 }) {
   const jobs = project ? state.jobs.filter((job) => job.projectId === project.id) : [];
   const succeeded = jobs.filter((job) => job.status === "succeeded").length;
+  const workflow = project ? getWorkflowDefinition(project.workflowId) : null;
   return (
     <section className="stack">
       <div className="metric-grid">
         <Metric label="项目" value={state.projects.length} icon={<FolderPlus />} />
+        <Metric label="阶段" value={project?.workflowRun.stages.length ?? 0} icon={<Route />} />
         <Metric label="镜头" value={project?.shots.length ?? 0} icon={<ListVideo />} />
-        <Metric label="任务" value={jobs.length} icon={<Film />} />
-        <Metric label="完成" value={succeeded} icon={<Sparkles />} />
+        <Metric label={succeeded ? "完成" : "任务"} value={succeeded || jobs.length} icon={<Film />} />
       </div>
       <div className="panel hero-panel">
         <div>
-          <p className="eyebrow">Agent Pipeline</p>
+          <p className="eyebrow">Agent Pipeline{workflow ? ` · ${workflow.shortName}` : ""}</p>
           <h2>从创意到可下载视频任务</h2>
           <p>
-            工作流整合了参考项目中的剧本拆解、角色一致性、素材管理、多模型配置和视频任务轮询。接口配置保存在本机，API Key 不写入仓库。
+            {workflow
+              ? workflow.positioning
+              : "工作流整合了剧本拆解、角色一致性、素材管理、多模型配置和视频任务轮询。接口配置保存在本机，API Key 不写入仓库。"}
           </p>
         </div>
         <div className="workflow">
@@ -350,6 +356,7 @@ function Studio({
           </button>
         </div>
       </div>
+      {project && <WorkflowOverview project={project} />}
       {project && (
         <div className="panel">
           <div className="section-head">
@@ -360,6 +367,7 @@ function Studio({
             <span className="pill">{project.status}</span>
           </div>
           <div className="summary-grid">
+            <span>工作流：{getWorkflowDefinition(project.workflowId).name}</span>
             <span>受众：{project.audience}</span>
             <span>风格：{project.style}</span>
             <span>画幅：{project.ratio}</span>
@@ -368,6 +376,38 @@ function Studio({
         </div>
       )}
     </section>
+  );
+}
+
+function WorkflowOverview({ project }: { project: Project }) {
+  const workflow = getWorkflowDefinition(project.workflowId);
+  return (
+    <div className="panel">
+      <div className="section-head">
+        <div>
+          <p className="eyebrow">内置工作流</p>
+          <h2>{workflow.name}</h2>
+        </div>
+        <span className="pill">{workflow.sourceProject}</span>
+      </div>
+      <div className="workflow-meta">
+        <span>{workflow.mode}</span>
+        <span>{workflow.bestFor}</span>
+      </div>
+      <div className="stage-lane">
+        {project.workflowRun.stages.map((stage) => (
+          <div className={`stage-chip ${stage.status}`} key={stage.id} title={stage.promptFocus}>
+            <strong>{stage.title}</strong>
+            <span>{queueText(stage.queue)} · {stageStatusText(stage.status)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="checkpoint-list">
+        {project.workflowRun.checkpoints.map((checkpoint) => (
+          <span key={checkpoint}>{checkpoint}</span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -408,6 +448,22 @@ function Projects({
           </div>
         </div>
         <FormGrid>
+          <Field label="内置工作流" wide>
+            <div className="workflow-picker">
+              {WORKFLOW_DEFINITIONS.map((workflow) => (
+                <button
+                  type="button"
+                  key={workflow.id}
+                  className={`workflow-option ${draft.workflowId === workflow.id ? "active" : ""}`}
+                  onClick={() => setDraft({ ...draft, workflowId: workflow.id })}
+                >
+                  <strong>{workflow.shortName}</strong>
+                  <span>{workflow.name}</span>
+                  <small>{workflow.mode}</small>
+                </button>
+              ))}
+            </div>
+          </Field>
           <Field label="项目名">
             <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
           </Field>
@@ -500,13 +556,15 @@ function Storyboard({
   assetForms: Record<string, Partial<SceneAsset>>;
   setAssetForms: React.Dispatch<React.SetStateAction<Record<string, Partial<SceneAsset>>>>;
 }) {
+  const workflow = getWorkflowDefinition(project.workflowId);
   return (
     <section className="stack">
       <div className="panel">
         <div className="section-head">
           <div>
-            <p className="eyebrow">脚本与分镜</p>
+            <p className="eyebrow">脚本与分镜 · {workflow.shortName}</p>
             <h2>生成后可逐镜头修改</h2>
+            <p className="inline-help">{workflow.creationHint}</p>
           </div>
           <button className="primary-button" disabled={Boolean(busy)} onClick={generate}>
             <Wand2 size={16} />
@@ -562,10 +620,22 @@ function Storyboard({
                 <Field label="镜头语言" wide>
                   <input value={shot.camera} onChange={(event) => updateShot(project, shot.id, { camera: event.target.value })} />
                 </Field>
+                <Field label="首帧/分镜图提示词" wide>
+                  <textarea
+                    value={shot.imagePrompt}
+                    onChange={(event) => updateShot(project, shot.id, { imagePrompt: event.target.value })}
+                  />
+                </Field>
                 <Field label="视频提示词" wide>
                   <textarea
                     value={shot.videoPrompt}
                     onChange={(event) => updateShot(project, shot.id, { videoPrompt: event.target.value })}
+                  />
+                </Field>
+                <Field label="配音提示词" wide>
+                  <textarea
+                    value={shot.voicePrompt ?? ""}
+                    onChange={(event) => updateShot(project, shot.id, { voicePrompt: event.target.value })}
                   />
                 </Field>
                 <Field label="台词/旁白" wide>
@@ -575,6 +645,20 @@ function Storyboard({
                   />
                 </Field>
               </FormGrid>
+
+              {(shot.productionNotes || shot.continuityPrompt || shot.taskTags?.length) && (
+                <div className="shot-notes">
+                  {shot.productionNotes && <p>{shot.productionNotes}</p>}
+                  {shot.continuityPrompt && <small>{shot.continuityPrompt}</small>}
+                  {!!shot.taskTags?.length && (
+                    <div className="tag-row">
+                      {shot.taskTags.map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="asset-bar">
                 <button className="secondary-button" onClick={() => addLocalAssets(project, shot)}>
@@ -1087,8 +1171,27 @@ function statusText(status: string) {
     running: "生成中",
     succeeded: "完成",
     failed: "失败",
+    pending: "等待",
+    ready: "就绪",
+    done: "已完成",
   };
   return map[status] ?? status;
+}
+
+function stageStatusText(status: string) {
+  return statusText(status);
+}
+
+function queueText(queue: string) {
+  const map: Record<string, string> = {
+    text: "文本",
+    image: "图像",
+    voice: "声音",
+    video: "视频",
+    compose: "合成",
+    ops: "运行",
+  };
+  return map[queue] ?? queue;
 }
 
 function inferAssetKind(source: string): SceneAsset["kind"] {

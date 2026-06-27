@@ -1,4 +1,20 @@
 import { z } from "zod";
+import {
+  DEFAULT_WORKFLOW_ID,
+  createWorkflowRun,
+  isWorkflowId,
+  type WorkflowId,
+  type WorkflowRun,
+} from "./workflows.js";
+
+export type {
+  WorkflowDefinition,
+  WorkflowId,
+  WorkflowQueue,
+  WorkflowRun,
+  WorkflowRunStage,
+  WorkflowStageStatus,
+} from "./workflows.js";
 
 export type ProviderId = "newapi-video";
 export type NewApiModelRole = "analysis" | "image" | "video";
@@ -68,6 +84,10 @@ export interface Shot {
   dialogue: string;
   imagePrompt: string;
   videoPrompt: string;
+  voicePrompt?: string;
+  continuityPrompt?: string;
+  productionNotes?: string;
+  taskTags?: string[];
   camera: string;
   duration: number;
   ratio: string;
@@ -80,6 +100,8 @@ export interface Shot {
 export interface Project {
   id: string;
   name: string;
+  workflowId: WorkflowId;
+  workflowRun: WorkflowRun;
   idea: string;
   audience: string;
   style: string;
@@ -118,7 +140,7 @@ export interface PipelineLog {
 }
 
 export interface AgentState {
-  schemaVersion: 3;
+  schemaVersion: 4;
   settings: AppSettings;
   projects: Project[];
   activeProjectId: string | null;
@@ -138,6 +160,7 @@ export type AgentStateForRenderer = AgentState & {
 
 export interface CreateProjectDraft {
   name: string;
+  workflowId: WorkflowId;
   idea: string;
   audience: string;
   style: string;
@@ -164,6 +187,7 @@ export interface NormalizedVideoTask {
 
 export const createProjectDraftSchema = z.object({
   name: z.string().min(1),
+  workflowId: z.custom<WorkflowId>((value) => isWorkflowId(value)).default(DEFAULT_WORKFLOW_ID),
   idea: z.string().min(1),
   audience: z.string().default("短视频观众"),
   style: z.string().default("电影感、节奏清晰、适合短视频"),
@@ -213,7 +237,7 @@ export function createDefaultSettings(): AppSettings {
 
 export function createDefaultState(): AgentState {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     settings: createDefaultSettings(),
     projects: [],
     activeProjectId: null,
@@ -229,9 +253,9 @@ export function migrateAgentState(input: unknown): AgentState {
   return {
     ...defaults,
     ...candidate,
-    schemaVersion: 3,
+    schemaVersion: 4,
     settings: migrateSettings(candidate.settings),
-    projects: Array.isArray(candidate.projects) ? candidate.projects : [],
+    projects: Array.isArray(candidate.projects) ? candidate.projects.map(migrateProject) : [],
     jobs: Array.isArray(candidate.jobs) ? candidate.jobs.map(migrateVideoJob) : [],
     logs: Array.isArray(candidate.logs) ? candidate.logs : [],
     activeProjectId: candidate.activeProjectId ?? null,
@@ -282,6 +306,8 @@ export function createProjectFromDraft(draftInput: CreateProjectDraft): Project 
   return {
     id: crypto.randomUUID(),
     name: draft.name,
+    workflowId: draft.workflowId,
+    workflowRun: createWorkflowRun(draft.workflowId),
     idea: draft.idea,
     audience: draft.audience,
     style: draft.style,
@@ -385,6 +411,37 @@ function migrateVideoJob(job: VideoJob): VideoJob {
   return {
     ...job,
     provider: "newapi-video",
+  };
+}
+
+function migrateProject(project: Project): Project {
+  const source = project as Partial<Project>;
+  const workflowId = isWorkflowId(source.workflowId) ? source.workflowId : DEFAULT_WORKFLOW_ID;
+  const shots = Array.isArray(source.shots) ? source.shots.map(migrateShot) : [];
+  const imageCount = shots.reduce((count, shot) => count + shot.assets.filter((asset) => asset.kind === "image").length, 0);
+  const videoCount = shots.filter((shot) => shot.videoJobId || shot.videoStatus !== "idle").length;
+  return {
+    ...project,
+    workflowId,
+    workflowRun:
+      source.workflowRun && source.workflowRun.workflowId === workflowId
+        ? source.workflowRun
+        : createWorkflowRun(workflowId, {
+            planned: shots.length > 0,
+            imageCount,
+            videoCount,
+          }),
+    characters: Array.isArray(source.characters) ? source.characters : [],
+    shots,
+  };
+}
+
+function migrateShot(shot: Shot): Shot {
+  return {
+    ...shot,
+    assets: Array.isArray(shot.assets) ? shot.assets : [],
+    videoStatus: shot.videoStatus ?? "idle",
+    taskTags: Array.isArray(shot.taskTags) ? shot.taskTags : [],
   };
 }
 

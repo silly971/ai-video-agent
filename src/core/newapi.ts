@@ -7,6 +7,7 @@ import type {
   Project,
   Shot,
 } from "../shared/schema.js";
+import { getWorkflowDefinition } from "../shared/workflows.js";
 import { fetchJson } from "./http.js";
 import { buildStoryboardPrompt, createLocalStoryboard, parseStoryboardJson, type StoryboardResult } from "./storyboard.js";
 
@@ -46,7 +47,10 @@ export async function generateStoryboardWithNewApi(
     body: JSON.stringify({
       model: config.model,
       messages: [
-        { role: "system", content: "你是一个专业短视频导演和制片 Agent，只输出可解析 JSON。" },
+        {
+          role: "system",
+          content: `${getWorkflowDefinition(project.workflowId).systemPrompt}\n只输出可解析 JSON，不要 Markdown。`,
+        },
         { role: "user", content: buildStoryboardPrompt(project) },
       ],
       temperature: 0.7,

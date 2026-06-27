@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultSettings, migrateAgentState, normalizeVideoTask } from "../src/shared/schema";
+import { createDefaultSettings, createProjectFromDraft, migrateAgentState, normalizeVideoTask } from "../src/shared/schema";
 import { joinUrl, parseHeadersJson } from "../src/core/http";
 import { buildImageGenerationBody } from "../src/core/newapi";
 
@@ -66,7 +66,7 @@ describe("video provider helpers", () => {
       activeProjectId: null,
     });
 
-    expect(state.schemaVersion).toBe(3);
+    expect(state.schemaVersion).toBe(4);
     expect(state.settings.newApi.analysis.baseUrl).toBe("https://newapi.example.com");
     expect(state.settings.newApi.analysis.model).toBe("analysis-model");
     expect(state.settings.newApi.image.model).toBe("image-model");
@@ -85,21 +85,16 @@ describe("video provider helpers", () => {
     settings.newApi.image.aspectRatio = "3:2";
 
     const body = buildImageGenerationBody(
-      {
-        id: "project-1",
+      createProjectFromDraft({
         name: "项目",
+        workflowId: "shortify-linear",
         idea: "城市广告片",
         audience: "短视频观众",
         style: "电影感",
         ratio: "9:16",
         duration: 30,
         targetShots: 1,
-        status: "draft",
-        characters: [],
-        shots: [],
-        createdAt: "2026-06-27T00:00:00.000Z",
-        updatedAt: "2026-06-27T00:00:00.000Z",
-      },
+      }),
       {
         id: "shot-1",
         index: 1,
