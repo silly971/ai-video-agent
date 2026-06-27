@@ -2,6 +2,7 @@ import type {
   AgentStateForRenderer,
   AppSettings,
   CreateProjectDraft,
+  NewApiModelRole,
   PipelineLog,
   Project,
 } from "../shared/schema";
@@ -9,13 +10,14 @@ import type {
 type AgentBridge = {
   getState: () => Promise<AgentStateForRenderer>;
   saveSettings: (patch: Partial<AppSettings>) => Promise<AgentStateForRenderer>;
-  testSettings: (provider: "newapi" | "seedance") => Promise<unknown>;
+  testSettings: (role: NewApiModelRole) => Promise<unknown>;
   createProject: (draft: CreateProjectDraft) => Promise<AgentStateForRenderer>;
   updateProject: (project: Project) => Promise<AgentStateForRenderer>;
   deleteProject: (projectId: string) => Promise<AgentStateForRenderer>;
   activateProject: (projectId: string) => Promise<AgentStateForRenderer>;
   generateStoryboard: (projectId: string) => Promise<AgentStateForRenderer>;
-  createVideo: (projectId: string, shotId: string, provider: "newapi" | "seedance") => Promise<AgentStateForRenderer>;
+  generateImage: (projectId: string, shotId: string) => Promise<AgentStateForRenderer>;
+  createVideo: (projectId: string, shotId: string) => Promise<AgentStateForRenderer>;
   pollVideo: (jobId: string) => Promise<AgentStateForRenderer>;
   downloadVideo: (jobId: string) => Promise<unknown>;
   pickAssets: () => Promise<string[]>;

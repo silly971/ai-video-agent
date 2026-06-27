@@ -3,6 +3,7 @@ import type {
   AgentStateForRenderer,
   AppSettings,
   CreateProjectDraft,
+  NewApiModelRole,
   PipelineLog,
   Project,
 } from "../src/shared/schema.js";
@@ -10,14 +11,16 @@ import type {
 const api = {
   getState: () => ipcRenderer.invoke("state:get") as Promise<AgentStateForRenderer>,
   saveSettings: (patch: Partial<AppSettings>) => ipcRenderer.invoke("settings:save", patch) as Promise<AgentStateForRenderer>,
-  testSettings: (provider: "newapi" | "seedance") => ipcRenderer.invoke("settings:test", provider),
+  testSettings: (role: NewApiModelRole) => ipcRenderer.invoke("settings:test", role),
   createProject: (draft: CreateProjectDraft) => ipcRenderer.invoke("project:create", draft) as Promise<AgentStateForRenderer>,
   updateProject: (project: Project) => ipcRenderer.invoke("project:update", project) as Promise<AgentStateForRenderer>,
   deleteProject: (projectId: string) => ipcRenderer.invoke("project:delete", projectId) as Promise<AgentStateForRenderer>,
   activateProject: (projectId: string) => ipcRenderer.invoke("project:activate", projectId) as Promise<AgentStateForRenderer>,
   generateStoryboard: (projectId: string) => ipcRenderer.invoke("agent:generate-storyboard", projectId) as Promise<AgentStateForRenderer>,
-  createVideo: (projectId: string, shotId: string, provider: "newapi" | "seedance") =>
-    ipcRenderer.invoke("video:create", projectId, shotId, provider) as Promise<AgentStateForRenderer>,
+  generateImage: (projectId: string, shotId: string) =>
+    ipcRenderer.invoke("image:generate", projectId, shotId) as Promise<AgentStateForRenderer>,
+  createVideo: (projectId: string, shotId: string) =>
+    ipcRenderer.invoke("video:create", projectId, shotId) as Promise<AgentStateForRenderer>,
   pollVideo: (jobId: string) => ipcRenderer.invoke("video:poll", jobId) as Promise<AgentStateForRenderer>,
   downloadVideo: (jobId: string) => ipcRenderer.invoke("video:download", jobId),
   pickAssets: () => ipcRenderer.invoke("asset:pick") as Promise<string[]>,

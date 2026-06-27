@@ -2,45 +2,44 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type {
   AppSettings,
-  NewApiConfig,
+  NewApiVideoConfig,
   Project,
-  ProviderId,
   RemoteVideoTask,
   SceneAsset,
-  SeedanceConfig,
   Shot,
 } from "../shared/schema.js";
-import { fetchJson, joinUrl, parseHeadersJson } from "./http.js";
+import { fetchJson } from "./http.js";
 
 export async function createVideoTask(
-  provider: ProviderId,
   project: Project,
   shot: Shot,
   settings: AppSettings,
 ): Promise<RemoteVideoTask> {
-  if (provider === "seedance") return createSeedanceTask(settings.seedance, project, shot);
-  return createNewApiVideoTask(settings.newApi, project, shot);
+  return createNewApiVideoTask(settings.newApi.video, project, shot);
 }
 
-export async function pollVideoTask(provider: ProviderId, remoteId: string, settings: AppSettings) {
-  if (provider === "seedance") return pollGenericJsonTask(settings.seedance, remoteId, "seedance");
-  return pollGenericJsonTask(settings.newApi, remoteId, "newapi");
+export async function pollVideoTask(remoteId: string, settings: AppSettings) {
+  return pollNewApiVideoTask(settings.newApi.video, remoteId);
 }
 
-export async function testSeedanceConnection(config: SeedanceConfig) {
+export async function testNewApiVideoConnection(config: NewApiVideoConfig) {
   if (!config.baseUrl || !config.apiKey) {
-    return { ok: false, message: "请先填写 Seedance Base URL 和 API Key" };
+    return { ok: false, message: "请先填写 New API 视频模型 Base URL 和 API Key" };
   }
   const result = await fetchJson(config, "/v1/videos/test-connection", { method: "GET" });
   if (result.ok || result.status === 404 || result.status === 405) {
-    return { ok: true, message: "Seedance 网关可访问；正式任务将使用 /v1/videos", status: result.status };
+    return { ok: true, message: "New API 视频模型网关可访问；正式任务将使用 /v1/videos", status: result.status };
   }
-  return { ok: false, message: result.error ?? "Seedance 连接失败", status: result.status };
+  return { ok: false, message: result.error ?? "New API 视频模型连接失败", status: result.status };
 }
 
-async function createSeedanceTask(config: SeedanceConfig, project: Project, shot: Shot): Promise<RemoteVideoTask> {
-  ensureProviderReady(config, "Seedance");
-  const content = await buildSeedanceContent(shot.assets);
+async function createNewApiVideoTask(
+  config: NewApiVideoConfig,
+  project: Project,
+  shot: Shot,
+): Promise<RemoteVideoTask> {
+  ensureVideoModelReady(config);
+  const content = await buildVideoContent(shot.assets);
   const body = {
     model: config.model,
     prompt: enrichVideoPrompt(project, shot),
@@ -57,56 +56,12 @@ async function createSeedanceTask(config: SeedanceConfig, project: Project, shot
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!result.ok) throw new Error(result.error ?? "Seedance 创建视频任务失败");
+  if (!result.ok) throw new Error(result.error ?? "New API 视频模型创建任务失败");
   return extractRemoteTask(result.data, result.data);
 }
 
-async function createNewApiVideoTask(config: NewApiConfig, project: Project, shot: Shot): Promise<RemoteVideoTask> {
-  ensureProviderReady(config, "New API");
-  const form = new FormData();
-  form.append("prompt", enrichVideoPrompt(project, shot));
-  form.append("model", config.videoModel || config.model);
-  form.append("seconds", String(Math.max(1, Math.round(shot.duration))));
-  form.append("size", ratioToNewApiSize(shot.ratio || project.ratio));
-
-  const metadata: Record<string, unknown> = {
-    watermark: false,
-    prompt_extend: true,
-  };
-  for (const asset of shot.assets) {
-    if (asset.kind === "image" && isRemoteUrl(asset.source)) {
-      metadata.img_url ??= asset.source;
-      if (asset.role === "first_frame") metadata.first_frame_url = asset.source;
-      if (asset.role === "last_frame") metadata.last_frame_url = asset.source;
-    } else if (asset.kind === "image") {
-      const file = await fs.readFile(asset.source);
-      form.append("input_reference", new Blob([file]), path.basename(asset.source));
-    }
-  }
-  form.append("metadata", JSON.stringify(metadata));
-
-  const headers = {
-    Authorization: `Bearer ${config.apiKey}`,
-    ...parseHeadersJson(config.headersJson),
-  };
-  const response = await fetch(joinUrl(config.baseUrl, "/v1/videos"), {
-    method: "POST",
-    headers,
-    body: form,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(readError(data) ?? `New API 创建视频任务失败 (${response.status})`);
-  }
-  return extractRemoteTask(data, data);
-}
-
-async function pollGenericJsonTask(
-  config: NewApiConfig | SeedanceConfig,
-  remoteId: string,
-  provider: ProviderId,
-): Promise<RemoteVideoTask> {
-  ensureProviderReady(config, provider === "seedance" ? "Seedance" : "New API");
+async function pollNewApiVideoTask(config: NewApiVideoConfig, remoteId: string): Promise<RemoteVideoTask> {
+  ensureVideoModelReady(config);
   const result = await fetchJson<Record<string, unknown>>(config, `/v1/videos/${encodeURIComponent(remoteId)}`, {
     method: "GET",
   });
@@ -122,11 +77,11 @@ export async function downloadVideo(url: string, targetPath: string) {
   await fs.writeFile(targetPath, buffer);
 }
 
-function ensureProviderReady(config: NewApiConfig | SeedanceConfig, label: string) {
-  if (!config.enabled) throw new Error(`${label} 未启用`);
-  if (!config.baseUrl) throw new Error(`${label} Base URL 不能为空`);
-  if (!config.apiKey) throw new Error(`${label} API Key 不能为空`);
-  if (!config.model) throw new Error(`${label} 模型不能为空`);
+function ensureVideoModelReady(config: NewApiVideoConfig) {
+  if (!config.enabled) throw new Error("New API 视频模型未启用");
+  if (!config.baseUrl) throw new Error("New API 视频模型 Base URL 不能为空");
+  if (!config.apiKey) throw new Error("New API 视频模型 API Key 不能为空");
+  if (!config.model) throw new Error("New API 视频模型不能为空");
 }
 
 function enrichVideoPrompt(project: Project, shot: Shot) {
@@ -141,7 +96,7 @@ function enrichVideoPrompt(project: Project, shot: Shot) {
     .join("\n");
 }
 
-async function buildSeedanceContent(assets: SceneAsset[]) {
+async function buildVideoContent(assets: SceneAsset[]) {
   const content = [];
   for (const asset of assets) {
     const url = isRemoteUrl(asset.source) ? asset.source : await fileToDataUrl(asset.source);
@@ -178,22 +133,6 @@ async function fileToDataUrl(filePath: string) {
 
 function isRemoteUrl(value: string) {
   return /^https?:\/\//i.test(value) || /^data:/i.test(value);
-}
-
-function ratioToNewApiSize(ratio: string) {
-  switch (ratio) {
-    case "16:9":
-      return "1920x1080";
-    case "1:1":
-      return "1440x1440";
-    case "4:3":
-      return "1440x1080";
-    case "3:4":
-      return "1080x1440";
-    case "9:16":
-    default:
-      return "1080x1920";
-  }
 }
 
 function extractRemoteTask(data: unknown, raw: unknown): RemoteVideoTask {

@@ -412,6 +412,13 @@ select:focus {
   grid-template-columns: minmax(0, 1.25fr) minmax(380px, 0.75fr);
 }
 
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 18px;
+  align-content: start;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -546,7 +553,7 @@ select:focus {
 
 .asset-bar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 88px 150px auto;
+  grid-template-columns: auto auto minmax(0, 1fr) 88px 150px auto;
 }
 
 .asset-list {
@@ -716,7 +723,8 @@ select:focus {
 
   .hero-panel,
   .two-column,
-  .two-column.wide-left {
+  .two-column.wide-left,
+  .settings-grid {
     grid-template-columns: 1fr;
   }
 }

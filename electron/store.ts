@@ -35,11 +35,18 @@ function mapSecrets(state: AgentState, fn: (value: string) => string): AgentStat
       ...state.settings,
       newApi: {
         ...state.settings.newApi,
-        apiKey: fn(state.settings.newApi.apiKey),
-      },
-      seedance: {
-        ...state.settings.seedance,
-        apiKey: fn(state.settings.seedance.apiKey),
+        analysis: {
+          ...state.settings.newApi.analysis,
+          apiKey: fn(state.settings.newApi.analysis.apiKey),
+        },
+        image: {
+          ...state.settings.newApi.image,
+          apiKey: fn(state.settings.newApi.image.apiKey),
+        },
+        video: {
+          ...state.settings.newApi.video,
+          apiKey: fn(state.settings.newApi.video.apiKey),
+        },
       },
     },
   };

@@ -25,9 +25,9 @@ import type {
   AppSettings,
   Character,
   CreateProjectDraft,
+  NewApiModelRole,
   PipelineLog,
   Project,
-  ProviderId,
   SceneAsset,
   Shot,
   VideoJob,
@@ -240,6 +240,9 @@ function App() {
             updateCharacter={updateCharacter}
             addLocalAssets={addLocalAssets}
             addUrlAsset={addUrlAsset}
+            generateImage={(shotId) =>
+              run("generate-image", () => window.agent.generateImage(activeProject.id, shotId), "首帧图已生成")
+            }
             assetForms={assetForms}
             setAssetForms={setAssetForms}
           />
@@ -249,11 +252,8 @@ function App() {
           <VideoTasks
             state={state}
             project={activeProject}
-            provider={settingsDraft.defaultProvider}
-            setProvider={(provider) => setSettingsDraft({ ...settingsDraft, defaultProvider: provider })}
-            saveProvider={saveSettings}
-            createVideo={(shotId, provider) =>
-              run("create-video", () => window.agent.createVideo(activeProject.id, shotId, provider), "视频任务已提交")
+            createVideo={(shotId) =>
+              run("create-video", () => window.agent.createVideo(activeProject.id, shotId), "视频任务已提交")
             }
             poll={(jobId) => run("poll-video", () => window.agent.pollVideo(jobId), "任务状态已刷新")}
             download={(jobId) => run("download-video", () => window.agent.downloadVideo(jobId))}
@@ -266,7 +266,7 @@ function App() {
             settings={settingsDraft}
             setSettings={setSettingsDraft}
             save={saveSettings}
-            test={(provider) => run(`test-${provider}`, () => window.agent.testSettings(provider))}
+            test={(role) => run(`test-${role}`, () => window.agent.testSettings(role))}
             busy={busy}
           />
         )}
@@ -480,6 +480,7 @@ function Storyboard({
   updateCharacter,
   addLocalAssets,
   addUrlAsset,
+  generateImage,
   assetForms,
   setAssetForms,
 }: {
@@ -490,6 +491,7 @@ function Storyboard({
   updateCharacter: (project: Project, characterId: string, patch: Partial<Character>) => void;
   addLocalAssets: (project: Project, shot: Shot) => void;
   addUrlAsset: (project: Project, shot: Shot) => void;
+  generateImage: (shotId: string) => void;
   assetForms: Record<string, Partial<SceneAsset>>;
   setAssetForms: React.Dispatch<React.SetStateAction<Record<string, Partial<SceneAsset>>>>;
 }) {
@@ -574,6 +576,10 @@ function Storyboard({
                   <Upload size={15} />
                   本地素材
                 </button>
+                <button className="secondary-button" disabled={Boolean(busy)} onClick={() => generateImage(shot.id)}>
+                  <Sparkles size={15} />
+                  生成首帧
+                </button>
                 <input
                   placeholder="https://... 或 data URL"
                   value={form.source ?? ""}
@@ -642,9 +648,6 @@ function Storyboard({
 function VideoTasks({
   state,
   project,
-  provider,
-  setProvider,
-  saveProvider,
   createVideo,
   poll,
   download,
@@ -652,10 +655,7 @@ function VideoTasks({
 }: {
   state: AgentStateForRenderer;
   project: Project;
-  provider: ProviderId;
-  setProvider: (provider: ProviderId) => void;
-  saveProvider: () => void;
-  createVideo: (shotId: string, provider: ProviderId) => void;
+  createVideo: (shotId: string) => void;
   poll: (jobId: string) => void;
   download: (jobId: string) => void;
   busy: string | null;
@@ -669,17 +669,7 @@ function VideoTasks({
             <p className="eyebrow">视频生成</p>
             <h2>逐镜头提交，结果可轮询下载</h2>
           </div>
-          <div className="segmented">
-            <button className={provider === "seedance" ? "active" : ""} onClick={() => setProvider("seedance")}>
-              Seedance
-            </button>
-            <button className={provider === "newapi" ? "active" : ""} onClick={() => setProvider("newapi")}>
-              New API
-            </button>
-            <button className="icon-button" onClick={saveProvider} title="保存默认 provider">
-              <Save size={15} />
-            </button>
-          </div>
+          <span className="pill">New API 视频模型</span>
         </div>
         <div className="shot-task-list">
           {project.shots.map((shot) => (
@@ -690,7 +680,7 @@ function VideoTasks({
                 </strong>
                 <span>{shot.videoPrompt}</span>
               </div>
-              <button className="primary-button" disabled={Boolean(busy)} onClick={() => createVideo(shot.id, provider)}>
+              <button className="primary-button" disabled={Boolean(busy)} onClick={() => createVideo(shot.id)}>
                 <Play size={16} />
                 生成
               </button>
@@ -734,7 +724,7 @@ function JobRow({
       <div className="progress">
         <span style={{ width: `${job.progress}%` }} />
       </div>
-      <small>{job.provider} {job.remoteId ? `· ${job.remoteId}` : ""}</small>
+      <small>New API 视频模型 {job.remoteId ? `· ${job.remoteId}` : ""}</small>
       {job.error && <p className="error-text">{job.error}</p>}
       <div className="row-actions">
         <button className="secondary-button" disabled={!job.remoteId} onClick={() => poll(job.id)}>
@@ -767,9 +757,25 @@ function SettingsView({
   settings: AppSettings;
   setSettings: (settings: AppSettings) => void;
   save: () => void;
-  test: (provider: "newapi" | "seedance") => void;
+  test: (role: NewApiModelRole) => void;
   busy: string | null;
 }) {
+  const setAnalysis = (patch: Partial<AppSettings["newApi"]["analysis"]>) =>
+    setSettings({
+      ...settings,
+      newApi: { ...settings.newApi, analysis: { ...settings.newApi.analysis, ...patch } },
+    });
+  const setImage = (patch: Partial<AppSettings["newApi"]["image"]>) =>
+    setSettings({
+      ...settings,
+      newApi: { ...settings.newApi, image: { ...settings.newApi.image, ...patch } },
+    });
+  const setVideo = (patch: Partial<AppSettings["newApi"]["video"]>) =>
+    setSettings({
+      ...settings,
+      newApi: { ...settings.newApi, video: { ...settings.newApi.video, ...patch } },
+    });
+
   return (
     <section className="stack">
       <div className="panel">
@@ -784,88 +790,133 @@ function SettingsView({
           </button>
         </div>
       </div>
-      <div className="two-column">
-        <ProviderPanel title="New API" doc="https://doc.newapi.pro/api/#_2" onTest={() => test("newapi")}>
+      <div className="settings-grid">
+        <ProviderPanel title="分析模型" doc="https://doc.newapi.pro/api/#_2" onTest={() => test("analysis")}>
           <FormGrid>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={settings.newApi.analysis.enabled}
+                onChange={(event) => setAnalysis({ enabled: event.target.checked })}
+              />
+              启用分析模型
+            </label>
             <Field label="Base URL">
               <input
-                value={settings.newApi.baseUrl}
-                onChange={(event) =>
-                  setSettings({ ...settings, newApi: { ...settings.newApi, baseUrl: event.target.value } })
-                }
+                value={settings.newApi.analysis.baseUrl}
+                onChange={(event) => setAnalysis({ baseUrl: event.target.value })}
               />
             </Field>
             <Field label="API Key">
               <input
                 type="password"
-                placeholder={settings.newApi.apiKey || "sk-..."}
-                onChange={(event) =>
-                  setSettings({ ...settings, newApi: { ...settings.newApi, apiKey: event.target.value } })
-                }
+                placeholder={settings.newApi.analysis.apiKey || "sk-..."}
+                onChange={(event) => setAnalysis({ apiKey: event.target.value })}
               />
             </Field>
-            <Field label="Chat 模型">
+            <Field label="分析模型">
               <input
-                value={settings.newApi.chatModel}
-                onChange={(event) =>
-                  setSettings({ ...settings, newApi: { ...settings.newApi, chatModel: event.target.value } })
-                }
+                value={settings.newApi.analysis.model}
+                onChange={(event) => setAnalysis({ model: event.target.value })}
               />
             </Field>
-            <Field label="视频模型">
+            <Field label="超时秒数">
               <input
-                value={settings.newApi.videoModel}
-                onChange={(event) =>
-                  setSettings({ ...settings, newApi: { ...settings.newApi, videoModel: event.target.value } })
-                }
+                type="number"
+                min={5}
+                value={settings.newApi.analysis.timeoutSeconds}
+                onChange={(event) => setAnalysis({ timeoutSeconds: Number(event.target.value) })}
               />
             </Field>
             <Field label="请求头 JSON" wide>
               <textarea
-                value={settings.newApi.headersJson}
-                onChange={(event) =>
-                  setSettings({ ...settings, newApi: { ...settings.newApi, headersJson: event.target.value } })
-                }
+                value={settings.newApi.analysis.headersJson}
+                onChange={(event) => setAnalysis({ headersJson: event.target.value })}
               />
             </Field>
           </FormGrid>
         </ProviderPanel>
 
-        <ProviderPanel title="Seedance" doc="https://seedance.muyuan.do/docs" onTest={() => test("seedance")}>
+        <ProviderPanel title="生图模型" doc="https://doc.newapi.pro/api/#_2" onTest={() => test("image")}>
           <FormGrid>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={settings.newApi.image.enabled}
+                onChange={(event) => setImage({ enabled: event.target.checked })}
+              />
+              启用生图模型
+            </label>
             <Field label="Base URL">
               <input
-                value={settings.seedance.baseUrl}
-                onChange={(event) =>
-                  setSettings({ ...settings, seedance: { ...settings.seedance, baseUrl: event.target.value } })
-                }
+                value={settings.newApi.image.baseUrl}
+                onChange={(event) => setImage({ baseUrl: event.target.value })}
               />
             </Field>
             <Field label="API Key">
               <input
                 type="password"
-                placeholder={settings.seedance.apiKey || "seedance key"}
-                onChange={(event) =>
-                  setSettings({ ...settings, seedance: { ...settings.seedance, apiKey: event.target.value } })
-                }
+                placeholder={settings.newApi.image.apiKey || "sk-..."}
+                onChange={(event) => setImage({ apiKey: event.target.value })}
               />
             </Field>
-            <Field label="模型">
+            <Field label="生图模型">
               <input
-                value={settings.seedance.model}
-                onChange={(event) =>
-                  setSettings({ ...settings, seedance: { ...settings.seedance, model: event.target.value } })
-                }
+                value={settings.newApi.image.model}
+                onChange={(event) => setImage({ model: event.target.value })}
+              />
+            </Field>
+            <Field label="超时秒数">
+              <input
+                type="number"
+                min={5}
+                value={settings.newApi.image.timeoutSeconds}
+                onChange={(event) => setImage({ timeoutSeconds: Number(event.target.value) })}
+              />
+            </Field>
+            <Field label="请求头 JSON" wide>
+              <textarea
+                value={settings.newApi.image.headersJson}
+                onChange={(event) => setImage({ headersJson: event.target.value })}
+              />
+            </Field>
+          </FormGrid>
+        </ProviderPanel>
+
+        <ProviderPanel title="视频模型（Seedance 接口格式）" doc="https://seedance.muyuan.do/docs" onTest={() => test("video")}>
+          <FormGrid>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={settings.newApi.video.enabled}
+                onChange={(event) => setVideo({ enabled: event.target.checked })}
+              />
+              启用视频模型
+            </label>
+            <Field label="Base URL">
+              <input
+                value={settings.newApi.video.baseUrl}
+                onChange={(event) => setVideo({ baseUrl: event.target.value })}
+              />
+            </Field>
+            <Field label="API Key">
+              <input
+                type="password"
+                placeholder={settings.newApi.video.apiKey || "video key"}
+                onChange={(event) => setVideo({ apiKey: event.target.value })}
+              />
+            </Field>
+            <Field label="视频模型">
+              <input
+                value={settings.newApi.video.model}
+                onChange={(event) => setVideo({ model: event.target.value })}
               />
             </Field>
             <Field label="分辨率">
               <select
-                value={settings.seedance.resolution}
+                value={settings.newApi.video.resolution}
                 onChange={(event) =>
-                  setSettings({
-                    ...settings,
-                    seedance: { ...settings.seedance, resolution: event.target.value as AppSettings["seedance"]["resolution"] },
-                  })
+                  setVideo({ resolution: event.target.value as AppSettings["newApi"]["video"]["resolution"] })
                 }
               >
                 <option>480p</option>
@@ -875,12 +926,9 @@ function SettingsView({
             </Field>
             <Field label="画幅">
               <select
-                value={settings.seedance.ratio}
+                value={settings.newApi.video.ratio}
                 onChange={(event) =>
-                  setSettings({
-                    ...settings,
-                    seedance: { ...settings.seedance, ratio: event.target.value as AppSettings["seedance"]["ratio"] },
-                  })
+                  setVideo({ ratio: event.target.value as AppSettings["newApi"]["video"]["ratio"] })
                 }
               >
                 {["21:9", "16:9", "4:3", "1:1", "3:4", "9:16", "adaptive"].map((item) => (
@@ -893,38 +941,38 @@ function SettingsView({
                 type="number"
                 min={4}
                 max={15}
-                value={settings.seedance.duration}
-                onChange={(event) =>
-                  setSettings({ ...settings, seedance: { ...settings.seedance, duration: Number(event.target.value) } })
-                }
+                value={settings.newApi.video.duration}
+                onChange={(event) => setVideo({ duration: Number(event.target.value) })}
+              />
+            </Field>
+            <Field label="超时秒数">
+              <input
+                type="number"
+                min={5}
+                value={settings.newApi.video.timeoutSeconds}
+                onChange={(event) => setVideo({ timeoutSeconds: Number(event.target.value) })}
               />
             </Field>
             <label className="toggle">
               <input
                 type="checkbox"
-                checked={settings.seedance.generateAudio}
-                onChange={(event) =>
-                  setSettings({ ...settings, seedance: { ...settings.seedance, generateAudio: event.target.checked } })
-                }
+                checked={settings.newApi.video.generateAudio}
+                onChange={(event) => setVideo({ generateAudio: event.target.checked })}
               />
               生成有声视频
             </label>
             <label className="toggle">
               <input
                 type="checkbox"
-                checked={settings.seedance.watermark}
-                onChange={(event) =>
-                  setSettings({ ...settings, seedance: { ...settings.seedance, watermark: event.target.checked } })
-                }
+                checked={settings.newApi.video.watermark}
+                onChange={(event) => setVideo({ watermark: event.target.checked })}
               />
               保留水印
             </label>
             <Field label="请求头 JSON" wide>
               <textarea
-                value={settings.seedance.headersJson}
-                onChange={(event) =>
-                  setSettings({ ...settings, seedance: { ...settings.seedance, headersJson: event.target.value } })
-                }
+                value={settings.newApi.video.headersJson}
+                onChange={(event) => setVideo({ headersJson: event.target.value })}
               />
             </Field>
           </FormGrid>
@@ -949,7 +997,7 @@ function ProviderPanel({
     <div className="panel">
       <div className="section-head">
         <div>
-          <p className="eyebrow">Provider</p>
+          <p className="eyebrow">New API 模型</p>
           <h2>{title}</h2>
         </div>
         <div className="row-actions">

@@ -1,7 +1,7 @@
 {
   "name": "ai-video-agent",
-  "version": "0.1.1",
-  "description": "桌面端 AI 视频制作 Agent，支持 New API 与 Seedance 自定义接口接入。",
+  "version": "0.1.2",
+  "description": "桌面端 AI 视频制作 Agent，支持 New API 分析、生图和视频模型独立配置。",
   "main": "dist-electron/electron/main.js",
   "author": "silly971",
   "license": "MIT",

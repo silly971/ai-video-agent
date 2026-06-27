@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export type ProviderId = "newapi" | "seedance";
+export type ProviderId = "newapi-video";
+export type NewApiModelRole = "analysis" | "image" | "video";
 export type VideoStatus = "idle" | "queued" | "running" | "succeeded" | "failed";
 
 export interface ProviderConfig {
@@ -12,14 +13,9 @@ export interface ProviderConfig {
   timeoutSeconds: number;
 }
 
-export interface NewApiConfig extends ProviderConfig {
-  chatModel: string;
-  videoModel: string;
-  imageModel: string;
-  audioModel: string;
-}
+export interface NewApiModelConfig extends ProviderConfig {}
 
-export interface SeedanceConfig extends ProviderConfig {
+export interface NewApiVideoConfig extends ProviderConfig {
   resolution: "480p" | "720p" | "1080p";
   ratio: "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "adaptive";
   duration: number;
@@ -27,11 +23,15 @@ export interface SeedanceConfig extends ProviderConfig {
   watermark: boolean;
 }
 
+export interface NewApiSettings {
+  analysis: NewApiModelConfig;
+  image: NewApiModelConfig;
+  video: NewApiVideoConfig;
+}
+
 export interface AppSettings {
-  defaultProvider: ProviderId;
   saveRawResponses: boolean;
-  newApi: NewApiConfig;
-  seedance: SeedanceConfig;
+  newApi: NewApiSettings;
 }
 
 export interface Character {
@@ -111,7 +111,7 @@ export interface PipelineLog {
 }
 
 export interface AgentState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   settings: AppSettings;
   projects: Project[];
   activeProjectId: string | null;
@@ -121,8 +121,11 @@ export interface AgentState {
 
 export type AgentStateForRenderer = AgentState & {
   settings: AppSettings & {
-    newApi: NewApiConfig & { hasApiKey: boolean; apiKey: string };
-    seedance: SeedanceConfig & { hasApiKey: boolean; apiKey: string };
+    newApi: {
+      analysis: NewApiModelConfig & { hasApiKey: boolean; apiKey: string };
+      image: NewApiModelConfig & { hasApiKey: boolean; apiKey: string };
+      video: NewApiVideoConfig & { hasApiKey: boolean; apiKey: string };
+    };
   };
 };
 
@@ -164,39 +167,44 @@ export const createProjectDraftSchema = z.object({
 
 export function createDefaultSettings(): AppSettings {
   return {
-    defaultProvider: "seedance",
     saveRawResponses: true,
     newApi: {
-      enabled: true,
-      baseUrl: "https://your-newapi.example.com",
-      apiKey: "",
-      model: "gpt-4o-mini",
-      chatModel: "gpt-4o-mini",
-      videoModel: "wan2.5-t2v-preview",
-      imageModel: "gpt-image-1",
-      audioModel: "tts-1",
-      headersJson: "{}",
-      timeoutSeconds: 120,
-    },
-    seedance: {
-      enabled: true,
-      baseUrl: "https://seedance.muyuan.do",
-      apiKey: "",
-      model: "doubao-seedance-2-0-fast-260128",
-      headersJson: "{}",
-      timeoutSeconds: 120,
-      resolution: "720p",
-      ratio: "9:16",
-      duration: 5,
-      generateAudio: true,
-      watermark: false,
+      analysis: {
+        enabled: true,
+        baseUrl: "https://your-newapi.example.com",
+        apiKey: "",
+        model: "gpt-4o-mini",
+        headersJson: "{}",
+        timeoutSeconds: 120,
+      },
+      image: {
+        enabled: true,
+        baseUrl: "https://your-newapi.example.com",
+        apiKey: "",
+        model: "gpt-image-1",
+        headersJson: "{}",
+        timeoutSeconds: 180,
+      },
+      video: {
+        enabled: true,
+        baseUrl: "https://seedance.muyuan.do",
+        apiKey: "",
+        model: "doubao-seedance-2-0-fast-260128",
+        headersJson: "{}",
+        timeoutSeconds: 120,
+        resolution: "720p",
+        ratio: "9:16",
+        duration: 5,
+        generateAudio: true,
+        watermark: false,
+      },
     },
   };
 }
 
 export function createDefaultState(): AgentState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     settings: createDefaultSettings(),
     projects: [],
     activeProjectId: null,
@@ -212,21 +220,10 @@ export function migrateAgentState(input: unknown): AgentState {
   return {
     ...defaults,
     ...candidate,
-    schemaVersion: 1,
-    settings: {
-      ...defaults.settings,
-      ...candidate.settings,
-      newApi: {
-        ...defaults.settings.newApi,
-        ...candidate.settings?.newApi,
-      },
-      seedance: {
-        ...defaults.settings.seedance,
-        ...candidate.settings?.seedance,
-      },
-    },
+    schemaVersion: 2,
+    settings: migrateSettings(candidate.settings),
     projects: Array.isArray(candidate.projects) ? candidate.projects : [],
-    jobs: Array.isArray(candidate.jobs) ? candidate.jobs : [],
+    jobs: Array.isArray(candidate.jobs) ? candidate.jobs.map(migrateVideoJob) : [],
     logs: Array.isArray(candidate.logs) ? candidate.logs : [],
     activeProjectId: candidate.activeProjectId ?? null,
   };
@@ -244,14 +241,9 @@ export function maskStateForRenderer(state: AgentState): AgentStateForRenderer {
     settings: {
       ...state.settings,
       newApi: {
-        ...state.settings.newApi,
-        hasApiKey: Boolean(state.settings.newApi.apiKey),
-        apiKey: maskSecret(state.settings.newApi.apiKey),
-      },
-      seedance: {
-        ...state.settings.seedance,
-        hasApiKey: Boolean(state.settings.seedance.apiKey),
-        apiKey: maskSecret(state.settings.seedance.apiKey),
+        analysis: maskConfig(state.settings.newApi.analysis),
+        image: maskConfig(state.settings.newApi.image),
+        video: maskConfig(state.settings.newApi.video),
       },
     },
   };
@@ -262,25 +254,17 @@ export function decryptSettingsForUse(settings: AppSettings): AppSettings {
 }
 
 export function mergeSettingsPatch(current: AppSettings, patch: Partial<AppSettings>): AppSettings {
-  const next = {
+  return {
     ...current,
     ...patch,
     newApi: {
       ...current.newApi,
       ...patch.newApi,
-    },
-    seedance: {
-      ...current.seedance,
-      ...patch.seedance,
+      analysis: mergeConfigPatch(current.newApi.analysis, patch.newApi?.analysis),
+      image: mergeConfigPatch(current.newApi.image, patch.newApi?.image),
+      video: mergeConfigPatch(current.newApi.video, patch.newApi?.video),
     },
   };
-  if (patch.newApi?.apiKey === "" || patch.newApi?.apiKey?.includes("...")) {
-    next.newApi.apiKey = current.newApi.apiKey;
-  }
-  if (patch.seedance?.apiKey === "" || patch.seedance?.apiKey?.includes("...")) {
-    next.seedance.apiKey = current.seedance.apiKey;
-  }
-  return next;
 }
 
 export function createProjectFromDraft(draftInput: CreateProjectDraft): Project {
@@ -303,14 +287,14 @@ export function createProjectFromDraft(draftInput: CreateProjectDraft): Project 
   };
 }
 
-export function createShotVideoJob(project: Project, shot: Shot, provider: ProviderId): VideoJob {
+export function createShotVideoJob(project: Project, shot: Shot): VideoJob {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID(),
     projectId: project.id,
     shotId: shot.id,
     shotTitle: shot.title,
-    provider,
+    provider: "newapi-video",
     status: "queued",
     progress: 0,
     createdAt: now,
@@ -342,4 +326,120 @@ export function importAgentState(current: AgentState, imported: AgentState): Age
     jobs: imported.jobs,
     logs: imported.logs,
   };
+}
+
+function migrateSettings(input: unknown): AppSettings {
+  const defaults = createDefaultSettings();
+  if (!input || typeof input !== "object") return defaults;
+
+  const legacy = input as Record<string, unknown>;
+  const legacyNewApi = objectValue(legacy.newApi);
+  const legacySeedance = objectValue(legacy.seedance);
+  const nestedNewApi = looksLikeNestedNewApi(legacyNewApi);
+
+  if (nestedNewApi) {
+    return {
+      saveRawResponses: Boolean(legacy.saveRawResponses ?? defaults.saveRawResponses),
+      newApi: {
+        analysis: mergeConfigPatch(defaults.newApi.analysis, legacyNewApi.analysis as Partial<NewApiModelConfig>),
+        image: mergeConfigPatch(defaults.newApi.image, legacyNewApi.image as Partial<NewApiModelConfig>),
+        video: mergeConfigPatch(defaults.newApi.video, legacyNewApi.video as Partial<NewApiVideoConfig>),
+      },
+    };
+  }
+
+  const flatAnalysis = flatProviderPatch(legacyNewApi, legacyNewApi.chatModel ?? legacyNewApi.model);
+  const flatImage = flatProviderPatch(legacyNewApi, legacyNewApi.imageModel ?? legacyNewApi.model);
+  const flatVideo = flatProviderPatch(legacyNewApi, legacyNewApi.videoModel ?? legacyNewApi.model);
+
+  return {
+    saveRawResponses: Boolean(legacy.saveRawResponses ?? defaults.saveRawResponses),
+    newApi: {
+      analysis: {
+        ...defaults.newApi.analysis,
+        ...flatAnalysis,
+      },
+      image: {
+        ...defaults.newApi.image,
+        ...flatImage,
+      },
+      video: {
+        ...defaults.newApi.video,
+        ...flatVideo,
+        ...compact(legacySeedance),
+      },
+    },
+  };
+}
+
+function migrateVideoJob(job: VideoJob): VideoJob {
+  return {
+    ...job,
+    provider: "newapi-video",
+  };
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function looksLikeNestedNewApi(value: Record<string, unknown>) {
+  return Boolean(value.analysis || value.image || value.video);
+}
+
+function compact<T extends Record<string, unknown>>(value: T): Partial<T> {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as Partial<T>;
+}
+
+function flatProviderPatch(source: Record<string, unknown>, model: unknown): Partial<ProviderConfig> {
+  return compact({
+    enabled: source.enabled,
+    baseUrl: source.baseUrl,
+    apiKey: source.apiKey,
+    model,
+    headersJson: source.headersJson,
+    timeoutSeconds: source.timeoutSeconds,
+  }) as Partial<ProviderConfig>;
+}
+
+function maskConfig<T extends ProviderConfig>(config: T): T & { hasApiKey: boolean; apiKey: string } {
+  return {
+    ...config,
+    hasApiKey: Boolean(config.apiKey),
+    apiKey: maskSecret(config.apiKey),
+  };
+}
+
+function mergeConfigPatch<T extends ProviderConfig>(current: T, patch?: Partial<T>): T {
+  const cleanPatch = cleanConfigPatch<T>(patch);
+  const next = {
+    ...current,
+    ...cleanPatch,
+  };
+  if (!patch || shouldPreserveSecret(patch.apiKey)) {
+    next.apiKey = current.apiKey;
+  }
+  return next;
+}
+
+function cleanConfigPatch<T extends ProviderConfig>(patch?: Partial<T>): Partial<T> {
+  if (!patch) return {};
+  const source = patch as Record<string, unknown>;
+  return compact({
+    enabled: source.enabled,
+    baseUrl: source.baseUrl,
+    apiKey: source.apiKey,
+    model: source.model,
+    headersJson: source.headersJson,
+    timeoutSeconds: source.timeoutSeconds,
+    resolution: source.resolution,
+    ratio: source.ratio,
+    duration: source.duration,
+    generateAudio: source.generateAudio,
+    watermark: source.watermark,
+  }) as Partial<T>;
+}
+
+function shouldPreserveSecret(value: string | undefined) {
+  return value === undefined || value === "" || value.includes("...") || value === "****";
 }

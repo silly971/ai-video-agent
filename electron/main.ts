@@ -12,20 +12,23 @@ import {
   normalizeVideoTask,
   type AgentState,
   type AppSettings,
+  type NewApiModelRole,
   type PipelineLog,
   type Project,
+  type SceneAsset,
   type Shot,
   type VideoJob,
 } from "../src/shared/schema.js";
 import {
+  generateShotImageWithNewApi,
   generateStoryboardWithNewApi,
-  testNewApiConnection,
+  testNewApiModelConnection,
 } from "../src/core/newapi.js";
 import {
   createVideoTask,
   downloadVideo,
   pollVideoTask,
-  testSeedanceConnection,
+  testNewApiVideoConnection,
 } from "../src/core/video-providers.js";
 import { loadState, saveState } from "./store.js";
 
@@ -99,13 +102,13 @@ function registerIpcHandlers() {
     return exposeState();
   });
 
-  ipcMain.handle("settings:test", async (_event, provider: "newapi" | "seedance") => {
+  ipcMain.handle("settings:test", async (_event, role: NewApiModelRole) => {
     const settings = decryptSettingsForUse(state.settings);
     const result =
-      provider === "newapi"
-        ? await testNewApiConnection(settings.newApi)
-        : await testSeedanceConnection(settings.seedance);
-    addLog(result.ok ? "success" : "error", `${provider} 连接测试${result.ok ? "通过" : "失败"}`, result);
+      role === "video"
+        ? await testNewApiVideoConnection(settings.newApi.video)
+        : await testNewApiModelConnection(role, settings.newApi[role]);
+    addLog(result.ok ? "success" : "error", `New API ${role} 连接测试${result.ok ? "通过" : "失败"}`, result);
     return result;
   });
 
@@ -146,7 +149,7 @@ function registerIpcHandlers() {
     if (!project) throw new Error("项目不存在");
     addLog("info", "Agent 开始生成剧本结构与分镜", { projectId });
     const settings = decryptSettingsForUse(state.settings);
-    const result = await generateStoryboardWithNewApi(project, settings.newApi);
+    const result = await generateStoryboardWithNewApi(project, settings.newApi.analysis);
     const updated: Project = {
       ...project,
       characters: result.characters,
@@ -162,17 +165,51 @@ function registerIpcHandlers() {
     return exposeState();
   });
 
-  ipcMain.handle("video:create", async (_event, projectId: string, shotId: string, provider: "newapi" | "seedance") => {
+  ipcMain.handle("image:generate", async (_event, projectId: string, shotId: string) => {
     const project = state.projects.find((item) => item.id === projectId);
     const shot = project?.shots.find((item) => item.id === shotId);
     if (!project || !shot) throw new Error("项目或镜头不存在");
     const settings = decryptSettingsForUse(state.settings);
-    const job = createShotVideoJob(project, shot, provider);
+    addLog("info", `提交生图任务：${shot.title}`);
+    const result = await generateShotImageWithNewApi(project, shot, settings.newApi.image);
+    const asset: SceneAsset = {
+      id: crypto.randomUUID(),
+      label: "AI 生成首帧",
+      kind: "image",
+      source: result.source,
+      role: "first_frame",
+    };
+    replaceProject({
+      ...project,
+      shots: project.shots.map((item) =>
+        item.id === shotId
+          ? {
+              ...item,
+              assets: [asset, ...item.assets],
+            }
+          : item,
+      ),
+      updatedAt: new Date().toISOString(),
+    });
+    await persist();
+    addLog("success", `首帧图已生成：${shot.title}`, {
+      revisedPrompt: result.revisedPrompt,
+      source: result.source.startsWith("data:") ? "data:image/*;base64,..." : result.source,
+    });
+    return exposeState();
+  });
+
+  ipcMain.handle("video:create", async (_event, projectId: string, shotId: string) => {
+    const project = state.projects.find((item) => item.id === projectId);
+    const shot = project?.shots.find((item) => item.id === shotId);
+    if (!project || !shot) throw new Error("项目或镜头不存在");
+    const settings = decryptSettingsForUse(state.settings);
+    const job = createShotVideoJob(project, shot);
     state.jobs = [job, ...state.jobs];
     await persist();
-    addLog("info", `提交视频任务：${shot.title}`, { provider });
+    addLog("info", `提交 New API 视频模型任务：${shot.title}`);
     try {
-      const remote = await createVideoTask(provider, project, shot, settings);
+      const remote = await createVideoTask(project, shot, settings);
       const updatedJob: VideoJob = {
         ...job,
         remoteId: remote.id,
@@ -190,7 +227,7 @@ function registerIpcHandlers() {
         updatedAt: new Date().toISOString(),
       });
       await persist();
-      addLog("success", `视频任务已创建：${remote.id}`, { provider });
+      addLog("success", `视频任务已创建：${remote.id}`, { provider: "newapi-video" });
     } catch (error) {
       const updatedJob: VideoJob = {
         ...job,
@@ -209,7 +246,7 @@ function registerIpcHandlers() {
     const job = state.jobs.find((item) => item.id === jobId);
     if (!job || !job.remoteId) throw new Error("任务不存在或尚未获得远端 ID");
     const settings = decryptSettingsForUse(state.settings);
-    const remote = await pollVideoTask(job.provider, job.remoteId, settings);
+    const remote = await pollVideoTask(job.remoteId, settings);
     const normalized = normalizeVideoTask(remote);
     const updatedJob: VideoJob = {
       ...job,

@@ -5,30 +5,32 @@
 ## 核心能力
 
 - 项目工作台：创建视频项目，设置受众、风格、画幅、目标镜头数和总时长。
-- Agent 分镜：使用 New API 的 OpenAI 兼容 Chat Completions 生成角色、场景、分镜、提示词；无 Key 时提供本地结构化草稿。
-- 角色与素材：可编辑角色视觉描述、配音提示、每个镜头的图/视频/音频参考素材。
-- 视频生成：支持 Seedance `/v1/videos` JSON 接口，也支持 New API `/v1/videos` multipart 接口。
+- Agent 分镜：使用 New API 分析模型生成角色、场景、分镜、图片提示词和视频提示词；无 Key 时提供本地结构化草稿。
+- 角色与素材：可编辑角色视觉描述、配音提示、每个镜头的图/视频/音频参考素材，并可用 New API 生图模型生成首帧素材。
+- 视频生成：使用 New API 视频模型提交 `/v1/videos` JSON 任务，视频请求体采用 Seedance 文档中的 `content[]` 参考素材格式。
 - 任务轮询：保存远端任务 ID、状态、进度、结果 URL、原始响应和错误信息。
-- 自定义接口：Base URL、API Key、模型名、自定义请求头均可在桌面端配置。
+- 自定义接口：分析模型、生图模型、视频模型分别配置 Base URL、API Key、模型名、自定义请求头和超时参数。
 - 本地保存：项目、配置、日志保存在 Electron userData 目录，API Key 使用系统安全存储加密。
 
 ## 接口支持
 
-### New API
+### New API 模型配置
 
-- Chat: `POST /v1/chat/completions`
-- Video: `POST /v1/videos`
-- Query: `GET /v1/videos/{video_id}`
+- 分析模型：`POST /v1/chat/completions`
+- 生图模型：`POST /v1/images/generations`
+- 视频模型：`POST /v1/videos`
+- 视频查询：`GET /v1/videos/{video_id}`
 - Auth: `Authorization: Bearer <API_KEY>`
 - 文档：[New API 接口文档](https://doc.newapi.pro/api/#_2)
 
-### Seedance
+### 视频模型请求体
+
+Seedance 不再作为独立 Provider 展示；它的接口方式合并为 New API 视频模型的请求格式：
 
 - Text to video: `POST /v1/videos`
 - Image/video/audio reference: `content[]` with `image_url` / `video_url` / `audio_url`
 - Query: `GET /v1/videos/{id}`
-- Auth: `Authorization: Bearer <API_KEY>`
-- 文档：[Seedance docs](https://seedance.muyuan.do/docs)
+- 参考文档：[Seedance docs](https://seedance.muyuan.do/docs)
 
 ## 开发运行
 
