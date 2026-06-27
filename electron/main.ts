@@ -61,7 +61,7 @@ function replaceProject(project: Project) {
 }
 
 async function createWindow() {
-  const preload = path.join(__dirname, "preload.js");
+  const preload = path.join(__dirname, "preload.cjs");
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 920,
