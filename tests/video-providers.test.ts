@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultSettings, migrateAgentState, normalizeVideoTask } from "../src/shared/schema";
 import { joinUrl, parseHeadersJson } from "../src/core/http";
+import { buildImageGenerationBody } from "../src/core/newapi";
 
 describe("video provider helpers", () => {
   it("normalizes common async task statuses", () => {
@@ -65,13 +66,62 @@ describe("video provider helpers", () => {
       activeProjectId: null,
     });
 
-    expect(state.schemaVersion).toBe(2);
+    expect(state.schemaVersion).toBe(3);
     expect(state.settings.newApi.analysis.baseUrl).toBe("https://newapi.example.com");
     expect(state.settings.newApi.analysis.model).toBe("analysis-model");
     expect(state.settings.newApi.image.model).toBe("image-model");
+    expect(state.settings.newApi.image.resolution).toBe("1K");
+    expect(state.settings.newApi.image.aspectRatio).toBe("1:1");
     expect(state.settings.newApi.video.baseUrl).toBe("https://seedance.example.com");
     expect(state.settings.newApi.video.model).toBe("seedance-video-model");
     expect(state.settings.newApi.video.resolution).toBe("1080p");
     expect(state.jobs[0].provider).toBe("newapi-video");
+  });
+
+  it("sends image resolution and aspect ratio in New API image requests", () => {
+    const settings = createDefaultSettings();
+    settings.newApi.image.model = "seedream-image";
+    settings.newApi.image.resolution = "2K";
+    settings.newApi.image.aspectRatio = "3:2";
+
+    const body = buildImageGenerationBody(
+      {
+        id: "project-1",
+        name: "项目",
+        idea: "城市广告片",
+        audience: "短视频观众",
+        style: "电影感",
+        ratio: "9:16",
+        duration: 30,
+        targetShots: 1,
+        status: "draft",
+        characters: [],
+        shots: [],
+        createdAt: "2026-06-27T00:00:00.000Z",
+        updatedAt: "2026-06-27T00:00:00.000Z",
+      },
+      {
+        id: "shot-1",
+        index: 1,
+        title: "镜头",
+        scene: "夜景街道",
+        characters: [],
+        narration: "",
+        dialogue: "",
+        imagePrompt: "霓虹灯下的街道",
+        videoPrompt: "",
+        camera: "广角",
+        duration: 5,
+        ratio: "16:9",
+        assets: [],
+        videoStatus: "idle",
+      },
+      settings.newApi.image,
+    );
+
+    expect(body.model).toBe("seedream-image");
+    expect(body.resolution).toBe("2K");
+    expect(body.aspect_ratio).toBe("3:2");
+    expect(body.size).toBe("3072x2048");
   });
 });

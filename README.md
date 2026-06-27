@@ -6,10 +6,10 @@
 
 - 项目工作台：创建视频项目，设置受众、风格、画幅、目标镜头数和总时长。
 - Agent 分镜：使用 New API 分析模型生成角色、场景、分镜、图片提示词和视频提示词；无 Key 时提供本地结构化草稿。
-- 角色与素材：可编辑角色视觉描述、配音提示、每个镜头的图/视频/音频参考素材，并可用 New API 生图模型生成首帧素材。
+- 角色与素材：可编辑角色视觉描述、配音提示、每个镜头的图/视频/音频参考素材，并可用 New API 生图模型按指定分辨率和图像比例生成首帧素材。
 - 视频生成：使用 New API 视频模型提交 `/v1/videos` JSON 任务，视频请求体采用 Seedance 文档中的 `content[]` 参考素材格式。
 - 任务轮询：保存远端任务 ID、状态、进度、结果 URL、原始响应和错误信息。
-- 自定义接口：分析模型、生图模型、视频模型分别配置 Base URL、API Key、模型名、自定义请求头和超时参数。
+- 自定义接口：分析模型、生图模型、视频模型分别配置 Base URL、API Key、模型名、自定义请求头和超时参数；生图模型额外配置基准分辨率和图像比例。
 - 本地保存：项目、配置、日志保存在 Electron userData 目录，API Key 使用系统安全存储加密。
 
 ## 接口支持
@@ -17,7 +17,7 @@
 ### New API 模型配置
 
 - 分析模型：`POST /v1/chat/completions`
-- 生图模型：`POST /v1/images/generations`
+- 生图模型：`POST /v1/images/generations`，请求体会带 `resolution`、`aspect_ratio` 和派生 `size`
 - 视频模型：`POST /v1/videos`
 - 视频查询：`GET /v1/videos/{video_id}`
 - Auth: `Authorization: Bearer <API_KEY>`

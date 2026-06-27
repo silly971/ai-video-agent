@@ -606,6 +606,34 @@ select:focus {
   color: #0f665f;
 }
 
+.option-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.option-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ratio-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.option-button {
+  min-height: 38px;
+  border: 1px solid #ddd9cc;
+  border-radius: 8px;
+  background: #fffdfa;
+  color: #5f5747;
+  font-weight: 800;
+}
+
+.option-button.active {
+  border-color: #2f77ff;
+  background: #eef5ff;
+  color: #2563eb;
+}
+
 .job-card {
   padding: 12px;
   display: grid;

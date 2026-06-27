@@ -25,6 +25,8 @@ import type {
   AppSettings,
   Character,
   CreateProjectDraft,
+  ImageAspectRatio,
+  ImageResolution,
   NewApiModelRole,
   PipelineLog,
   Project,
@@ -52,6 +54,9 @@ const roleOptions: SceneAsset["role"][] = [
   "reference_video",
   "reference_audio",
 ];
+
+const imageResolutionOptions: ImageResolution[] = ["1K", "2K", "4K"];
+const imageAspectRatioOptions: ImageAspectRatio[] = ["1:1", "3:2", "2:3", "16:9", "9:16", "4:3", "3:4", "21:9"];
 
 function App() {
   const [state, setState] = useState<AgentStateForRenderer | null>(null);
@@ -873,6 +878,34 @@ function SettingsView({
                 value={settings.newApi.image.timeoutSeconds}
                 onChange={(event) => setImage({ timeoutSeconds: Number(event.target.value) })}
               />
+            </Field>
+            <Field label="基准分辨率" wide>
+              <div className="option-grid three">
+                {imageResolutionOptions.map((resolution) => (
+                  <button
+                    type="button"
+                    key={resolution}
+                    className={`option-button ${settings.newApi.image.resolution === resolution ? "active" : ""}`}
+                    onClick={() => setImage({ resolution })}
+                  >
+                    {resolution}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="图像比例" wide>
+              <div className="option-grid ratio-grid">
+                {imageAspectRatioOptions.map((aspectRatio) => (
+                  <button
+                    type="button"
+                    key={aspectRatio}
+                    className={`option-button ${settings.newApi.image.aspectRatio === aspectRatio ? "active" : ""}`}
+                    onClick={() => setImage({ aspectRatio })}
+                  >
+                    {aspectRatio}
+                  </button>
+                ))}
+              </div>
             </Field>
             <Field label="请求头 JSON" wide>
               <textarea

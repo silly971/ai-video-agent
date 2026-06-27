@@ -1,4 +1,12 @@
-import type { NewApiModelConfig, NewApiModelRole, Project, Shot } from "../shared/schema.js";
+import type {
+  ImageAspectRatio,
+  ImageResolution,
+  NewApiImageConfig,
+  NewApiModelConfig,
+  NewApiModelRole,
+  Project,
+  Shot,
+} from "../shared/schema.js";
 import { fetchJson } from "./http.js";
 import { buildStoryboardPrompt, createLocalStoryboard, parseStoryboardJson, type StoryboardResult } from "./storyboard.js";
 
@@ -58,18 +66,13 @@ export async function generateStoryboardWithNewApi(
 export async function generateShotImageWithNewApi(
   project: Project,
   shot: Shot,
-  config: NewApiModelConfig,
+  config: NewApiImageConfig,
 ): Promise<GeneratedImageResult> {
   ensureModelReady(config, "New API 生图模型");
   const response = await fetchJson<ImageGenerationResponse>(config, "/v1/images/generations", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: config.model,
-      prompt: enrichImagePrompt(project, shot),
-      n: 1,
-      size: ratioToImageSize(shot.ratio || project.ratio),
-    }),
+    body: JSON.stringify(buildImageGenerationBody(project, shot, config)),
   });
 
   if (!response.ok) {
@@ -83,6 +86,17 @@ export async function generateShotImageWithNewApi(
     source,
     revisedPrompt: item?.revised_prompt,
     raw: response.data,
+  };
+}
+
+export function buildImageGenerationBody(project: Project, shot: Shot, config: NewApiImageConfig) {
+  return {
+    model: config.model,
+    prompt: enrichImagePrompt(project, shot),
+    n: 1,
+    resolution: config.resolution,
+    aspect_ratio: config.aspectRatio,
+    size: imageSizeFromOptions(config.resolution, config.aspectRatio),
   };
 }
 
@@ -115,18 +129,27 @@ function enrichImagePrompt(project: Project, shot: Shot) {
     .join("\n");
 }
 
-function ratioToImageSize(ratio: string) {
-  switch (ratio) {
-    case "16:9":
-      return "1792x1024";
-    case "1:1":
-      return "1024x1024";
-    case "4:3":
-      return "1024x768";
-    case "3:4":
-      return "768x1024";
-    case "9:16":
-    default:
-      return "1024x1792";
+export function imageSizeFromOptions(resolution: ImageResolution, ratio: ImageAspectRatio) {
+  const base = resolutionToBasePixels(resolution);
+  const [widthRatio, heightRatio] = ratio.split(":").map(Number) as [number, number];
+  if (widthRatio >= heightRatio) {
+    return `${roundToImageStep((base * widthRatio) / heightRatio)}x${base}`;
   }
+  return `${base}x${roundToImageStep((base * heightRatio) / widthRatio)}`;
+}
+
+function resolutionToBasePixels(resolution: ImageResolution) {
+  switch (resolution) {
+    case "4K":
+      return 4096;
+    case "2K":
+      return 2048;
+    case "1K":
+    default:
+      return 1024;
+  }
+}
+
+function roundToImageStep(value: number) {
+  return Math.max(64, Math.round(value / 64) * 64);
 }

@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export type ProviderId = "newapi-video";
 export type NewApiModelRole = "analysis" | "image" | "video";
+export type ImageResolution = "1K" | "2K" | "4K";
+export type ImageAspectRatio = "1:1" | "3:2" | "2:3" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9";
 export type VideoStatus = "idle" | "queued" | "running" | "succeeded" | "failed";
 
 export interface ProviderConfig {
@@ -15,6 +17,11 @@ export interface ProviderConfig {
 
 export interface NewApiModelConfig extends ProviderConfig {}
 
+export interface NewApiImageConfig extends ProviderConfig {
+  resolution: ImageResolution;
+  aspectRatio: ImageAspectRatio;
+}
+
 export interface NewApiVideoConfig extends ProviderConfig {
   resolution: "480p" | "720p" | "1080p";
   ratio: "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "adaptive";
@@ -25,7 +32,7 @@ export interface NewApiVideoConfig extends ProviderConfig {
 
 export interface NewApiSettings {
   analysis: NewApiModelConfig;
-  image: NewApiModelConfig;
+  image: NewApiImageConfig;
   video: NewApiVideoConfig;
 }
 
@@ -111,7 +118,7 @@ export interface PipelineLog {
 }
 
 export interface AgentState {
-  schemaVersion: 2;
+  schemaVersion: 3;
   settings: AppSettings;
   projects: Project[];
   activeProjectId: string | null;
@@ -123,7 +130,7 @@ export type AgentStateForRenderer = AgentState & {
   settings: AppSettings & {
     newApi: {
       analysis: NewApiModelConfig & { hasApiKey: boolean; apiKey: string };
-      image: NewApiModelConfig & { hasApiKey: boolean; apiKey: string };
+      image: NewApiImageConfig & { hasApiKey: boolean; apiKey: string };
       video: NewApiVideoConfig & { hasApiKey: boolean; apiKey: string };
     };
   };
@@ -184,6 +191,8 @@ export function createDefaultSettings(): AppSettings {
         model: "gpt-image-1",
         headersJson: "{}",
         timeoutSeconds: 180,
+        resolution: "1K",
+        aspectRatio: "1:1",
       },
       video: {
         enabled: true,
@@ -204,7 +213,7 @@ export function createDefaultSettings(): AppSettings {
 
 export function createDefaultState(): AgentState {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     settings: createDefaultSettings(),
     projects: [],
     activeProjectId: null,
@@ -220,7 +229,7 @@ export function migrateAgentState(input: unknown): AgentState {
   return {
     ...defaults,
     ...candidate,
-    schemaVersion: 2,
+    schemaVersion: 3,
     settings: migrateSettings(candidate.settings),
     projects: Array.isArray(candidate.projects) ? candidate.projects : [],
     jobs: Array.isArray(candidate.jobs) ? candidate.jobs.map(migrateVideoJob) : [],
@@ -342,7 +351,7 @@ function migrateSettings(input: unknown): AppSettings {
       saveRawResponses: Boolean(legacy.saveRawResponses ?? defaults.saveRawResponses),
       newApi: {
         analysis: mergeConfigPatch(defaults.newApi.analysis, legacyNewApi.analysis as Partial<NewApiModelConfig>),
-        image: mergeConfigPatch(defaults.newApi.image, legacyNewApi.image as Partial<NewApiModelConfig>),
+        image: mergeConfigPatch(defaults.newApi.image, legacyNewApi.image as Partial<NewApiImageConfig>),
         video: mergeConfigPatch(defaults.newApi.video, legacyNewApi.video as Partial<NewApiVideoConfig>),
       },
     };
@@ -399,6 +408,8 @@ function flatProviderPatch(source: Record<string, unknown>, model: unknown): Par
     model,
     headersJson: source.headersJson,
     timeoutSeconds: source.timeoutSeconds,
+    resolution: source.resolution,
+    aspectRatio: source.aspectRatio,
   }) as Partial<ProviderConfig>;
 }
 
@@ -433,6 +444,7 @@ function cleanConfigPatch<T extends ProviderConfig>(patch?: Partial<T>): Partial
     headersJson: source.headersJson,
     timeoutSeconds: source.timeoutSeconds,
     resolution: source.resolution,
+    aspectRatio: source.aspectRatio,
     ratio: source.ratio,
     duration: source.duration,
     generateAudio: source.generateAudio,

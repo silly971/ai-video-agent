@@ -1,6 +1,6 @@
 {
   "name": "ai-video-agent",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "桌面端 AI 视频制作 Agent，支持 New API 分析、生图和视频模型独立配置。",
   "main": "dist-electron/electron/main.js",
   "author": "silly971",
