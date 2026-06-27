@@ -1,0 +1,61 @@
+# AI Video Agent
+
+桌面端 AI 视频制作 Agent，参考了 Shortify-AI、ai-fusion-video、waoowaoo 的工作流优点：创意到剧本拆解、角色一致性、分镜管理、多模型接口配置、视频异步任务和本地日志。
+
+## 核心能力
+
+- 项目工作台：创建视频项目，设置受众、风格、画幅、目标镜头数和总时长。
+- Agent 分镜：使用 New API 的 OpenAI 兼容 Chat Completions 生成角色、场景、分镜、提示词；无 Key 时提供本地结构化草稿。
+- 角色与素材：可编辑角色视觉描述、配音提示、每个镜头的图/视频/音频参考素材。
+- 视频生成：支持 Seedance `/v1/videos` JSON 接口，也支持 New API `/v1/videos` multipart 接口。
+- 任务轮询：保存远端任务 ID、状态、进度、结果 URL、原始响应和错误信息。
+- 自定义接口：Base URL、API Key、模型名、自定义请求头均可在桌面端配置。
+- 本地保存：项目、配置、日志保存在 Electron userData 目录，API Key 使用系统安全存储加密。
+
+## 接口支持
+
+### New API
+
+- Chat: `POST /v1/chat/completions`
+- Video: `POST /v1/videos`
+- Query: `GET /v1/videos/{video_id}`
+- Auth: `Authorization: Bearer <API_KEY>`
+- 文档：[New API 接口文档](https://doc.newapi.pro/api/#_2)
+
+### Seedance
+
+- Text to video: `POST /v1/videos`
+- Image/video/audio reference: `content[]` with `image_url` / `video_url` / `audio_url`
+- Query: `GET /v1/videos/{id}`
+- Auth: `Authorization: Bearer <API_KEY>`
+- 文档：[Seedance docs](https://seedance.muyuan.do/docs)
+
+## 开发运行
+
+```bash
+npm install
+npm run dev
+```
+
+## 本地验证
+
+```bash
+npm run typecheck
+npm test
+npm run build
+```
+
+## 构建与启动
+
+```bash
+npm run build
+npm run start
+```
+
+`npm run start` 会先构建，再用 Electron 打开桌面应用。后续如果需要安装器，可在 CI 或打包机上接入 electron-builder / forge。
+
+## 参考项目
+
+- [ycbing/Shortify-AI](https://github.com/ycbing/Shortify-AI)
+- [Stonewuu/ai-fusion-video](https://github.com/Stonewuu/ai-fusion-video)
+- [waooAI/waoowaoo](https://github.com/waooAI/waoowaoo)
