@@ -14,7 +14,7 @@ describe("video provider helpers", () => {
     expect(joinUrl("https://example.com/", "/v1/videos")).toBe("https://example.com/v1/videos");
   });
 
-  it("accepts custom JSON headers", () => {
+  it("parses internal JSON headers", () => {
     const settings = createDefaultSettings();
     settings.newApi.video.headersJson = "{\"X-Route\":\"seedance\"}";
     expect(parseHeadersJson(settings.newApi.video.headersJson)).toEqual({ "X-Route": "seedance" });

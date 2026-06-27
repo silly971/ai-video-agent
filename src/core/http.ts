@@ -17,7 +17,7 @@ export function parseHeadersJson(headersJson: string) {
   if (!headersJson.trim()) return {};
   const value = JSON.parse(headersJson);
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("自定义请求头必须是 JSON 对象");
+    throw new Error("内置请求头必须是 JSON 对象");
   }
   return Object.fromEntries(Object.entries(value).map(([key, headerValue]) => [key, String(headerValue)]));
 }

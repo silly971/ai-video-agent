@@ -787,7 +787,7 @@ function SettingsView({
         <div className="section-head">
           <div>
             <p className="eyebrow">API 配置</p>
-            <h2>自定义网关、模型和请求头</h2>
+            <h2>自定义网关、模型和接口参数</h2>
           </div>
           <button className="primary-button" onClick={save} disabled={Boolean(busy)}>
             <Save size={16} />
@@ -831,12 +831,6 @@ function SettingsView({
                 min={5}
                 value={settings.newApi.analysis.timeoutSeconds}
                 onChange={(event) => setAnalysis({ timeoutSeconds: Number(event.target.value) })}
-              />
-            </Field>
-            <Field label="请求头 JSON" wide>
-              <textarea
-                value={settings.newApi.analysis.headersJson}
-                onChange={(event) => setAnalysis({ headersJson: event.target.value })}
               />
             </Field>
           </FormGrid>
@@ -906,12 +900,6 @@ function SettingsView({
                   </button>
                 ))}
               </div>
-            </Field>
-            <Field label="请求头 JSON" wide>
-              <textarea
-                value={settings.newApi.image.headersJson}
-                onChange={(event) => setImage({ headersJson: event.target.value })}
-              />
             </Field>
           </FormGrid>
         </ProviderPanel>
@@ -1002,12 +990,6 @@ function SettingsView({
               />
               保留水印
             </label>
-            <Field label="请求头 JSON" wide>
-              <textarea
-                value={settings.newApi.video.headersJson}
-                onChange={(event) => setVideo({ headersJson: event.target.value })}
-              />
-            </Field>
           </FormGrid>
         </ProviderPanel>
       </div>
