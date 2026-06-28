@@ -11,46 +11,21 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
-    env:
-      DATABASE_URL: file:./data/desktop.db
-      DESKTOP_MODE: 'true'
-      TASK_QUEUE_MODE: local
-      REDIS_DISABLED: 'true'
-      STORAGE_TYPE: local
-      UPLOAD_DIR: ./data/uploads
-      NEXTAUTH_URL: http://127.0.0.1:3000
-      INTERNAL_APP_URL: http://127.0.0.1:3000
-      NEXTAUTH_SECRET: ci-nextauth-secret
-      CRON_SECRET: ci-cron-secret
-      INTERNAL_TASK_TOKEN: ci-task-token
-      API_ENCRYPTION_KEY: ci-encryption-key
-      BILLING_MODE: OFF
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Prepare desktop database
+      - name: Build native Windows desktop
+        shell: pwsh
         run: |
-          npm run desktop:env
-          npx prisma db push
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Build Windows desktop exe
-        run: npm run build:desktop
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          powershell -ExecutionPolicy Bypass -File scripts\build-native-desktop.ps1 -Version $version -RunSmokeTest
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/*.exe
+          files: |
+            release/AI-Video-Agent-Native-*-Windows-x64.exe
+            release/AI-Video-Agent-Native-*-Windows-x64.zip
+            release/AI-Video-Agent-Native-*-Windows-x64.zip.sha256
           generate_release_notes: true

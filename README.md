@@ -1,42 +1,46 @@
-# AI Video Agent Desktop
+# AI Video Agent Native
 
-基于 [waooAI/waoowaoo](https://github.com/waooAI/waoowaoo) 完整迁移的 Windows 桌面端 AI 影视生产 Agent。
+基于 [waooAI/waoowaoo](https://github.com/waooAI/waoowaoo) 迁移的 Windows 原生桌面端 AI 影视生产 Agent。
 
-这个仓库保留原项目的工作台、项目/剧集管理、小说导入、剧本与分镜生成、角色/场景/道具/声音资产库、图片/视频/配音任务、Remotion 编辑能力、多语言界面、模型配置中心和任务进度流。桌面版不要求 Docker、MySQL、Redis 或 MinIO；双击 exe 后会在本机启动内置 Next.js 服务，并使用 SQLite、本地文件存储和进程内任务队列。
+`v0.7.0` 开始，正式桌面入口改为 WinForms 原生 UI：不启动 Next.js，不嵌入浏览器控件，不依赖 Electron/WebView。应用直接读取本地项目文件夹，按视频、图片、音频、文案和数据文件建立素材清单，并生成可导出的镜头提示词草稿。
 
 ## 直接使用
 
-到 GitHub Releases 下载 `AI-Video-Agent-*-Windows-x64.exe`，双击打开即可。
+到 GitHub Releases 下载 `AI-Video-Agent-Native-*-Windows-x64.exe`，双击打开即可。
 
-首次启动会自动创建：
+使用流程：
 
-- SQLite 数据库：`%APPDATA%\\AIVideoAgent\\data\\ai-video-agent.db`
-- 上传/生成文件：`%APPDATA%\\AIVideoAgent\\uploads`
-- 启动日志：`%APPDATA%\\AIVideoAgent\\logs\\desktop-next.log`
+1. 点击“打开文件夹”，选择本地视频项目目录。
+2. 在“素材”页检查递归读取到的文件。
+3. 在“剧本/文案”页确认或粘贴文本。
+4. 点击“生成镜头草稿”。
+5. 点击“导出提示词包”或“保存清单”。
 
-AI 服务的 API Key 可以在应用内设置中心配置。
+导出文件会写入所选项目目录下的 `_native_agent/`：
+
+- `project.manifest.json`
+- `storyboard_prompts.csv`
+- `video_agent_prompt_pack.txt`
 
 ## 从源码运行
 
 ```bash
 npm install
-npm run desktop:doctor
-npm run desktop:setup
 npm run desktop
 ```
 
-`desktop:setup` 会生成桌面本地 `.env`、推送 SQLite 表结构并准备本地存储目录。
+`npm run desktop` 会构建并启动原生桌面程序。旧的 Electron/Next 运行方式保留为 `npm run desktop:web-legacy`，仅用于历史对照。
 
 ## 构建 exe
 
 ```bash
-npm run build:desktop
+npm run build:native
 ```
 
 构建产物会输出到 `release/`，文件名类似：
 
 ```text
-AI-Video-Agent-0.6.0-Windows-x64.exe
+AI-Video-Agent-Native-0.7.0-Windows-x64.exe
 ```
 
 ## 验证
@@ -44,26 +48,19 @@ AI-Video-Agent-0.6.0-Windows-x64.exe
 常用检查：
 
 ```bash
-npm run typecheck
-npm run test:unit:all
-npm run build
+npm run build:native
 ```
 
-桌面端 smoke test：
-
-```bash
-npm run desktop:setup
-npm run desktop
-```
+`build:native` 会编译 WinForms 程序、打包 zip，并启动 exe 做一次 smoke test。
 
 ## 发布
 
-推送 `v*` 标签会触发 `.github/workflows/release.yml`，在 Windows runner 上构建桌面 exe 并上传到 GitHub Release。
+推送 `v*` 标签会触发 `.github/workflows/release.yml`，在 Windows runner 上构建原生桌面 exe/zip 并上传到 GitHub Release。
 
 ```bash
-git tag -a v0.6.0 -m "release: v0.6.0 desktop agent"
+git tag -a v0.7.0 -m "release: v0.7.0 native desktop agent"
 git push origin main
-git push origin v0.6.0
+git push origin v0.7.0
 ```
 
 ## 来源
