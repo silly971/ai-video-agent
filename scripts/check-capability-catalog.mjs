@@ -5,7 +5,7 @@ import path from 'node:path'
 const CAPABILITY_NAMESPACES = new Set(['llm', 'image', 'video', 'audio', 'lipsync'])
 const CAPABILITY_NAMESPACE_ALLOWED_FIELDS = {
   llm: new Set(['reasoningEffortOptions', 'fieldI18n']),
-  image: new Set(['resolutionOptions', 'fieldI18n']),
+  image: new Set(['resolutionOptions', 'qualityOptions', 'fieldI18n']),
   video: new Set([
     'generationModeOptions',
     'generateAudioOptions',
@@ -21,7 +21,7 @@ const CAPABILITY_NAMESPACE_ALLOWED_FIELDS = {
 }
 const CAPABILITY_NAMESPACE_I18N_FIELDS = {
   llm: { reasoningEffort: 'reasoningEffortOptions' },
-  image: { resolution: 'resolutionOptions' },
+  image: { resolution: 'resolutionOptions', quality: 'qualityOptions' },
   video: {
     generationMode: 'generationModeOptions',
     generateAudio: 'generateAudioOptions',
@@ -194,6 +194,9 @@ function validateCapabilitiesForModelType(issues, file, index, modelType, capabi
       validateAllowedFields(issues, file, index, 'image', image)
       if (image.resolutionOptions !== undefined && !isStringArray(image.resolutionOptions)) {
         pushIssue(issues, file, index, 'capabilities.image.resolutionOptions', 'must be string array')
+      }
+      if (image.qualityOptions !== undefined && !isStringArray(image.qualityOptions)) {
+        pushIssue(issues, file, index, 'capabilities.image.qualityOptions', 'must be string array')
       }
       validateFieldI18nMap(issues, file, index, 'image', image)
     }

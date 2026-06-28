@@ -36,7 +36,7 @@ npm run build:desktop
 构建产物会输出到 `release/`，文件名类似：
 
 ```text
-AI-Video-Agent-0.5.0-Windows-x64.exe
+AI-Video-Agent-0.6.0-Windows-x64.exe
 ```
 
 ## 验证
@@ -61,9 +61,9 @@ npm run desktop
 推送 `v*` 标签会触发 `.github/workflows/release.yml`，在 Windows runner 上构建桌面 exe 并上传到 GitHub Release。
 
 ```bash
-git tag -a v0.5.0 -m "release: v0.5.0 desktop agent"
+git tag -a v0.6.0 -m "release: v0.6.0 desktop agent"
 git push origin main
-git push origin v0.5.0
+git push origin v0.6.0
 ```
 
 ## 来源

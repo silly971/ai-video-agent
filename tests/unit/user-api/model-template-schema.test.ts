@@ -38,6 +38,68 @@ describe('user-api model template schema', () => {
     expect(result.template?.mode).toBe('async')
   })
 
+  it('accepts newapi image and seedance video placeholders', () => {
+    const imageResult = validateOpenAICompatMediaTemplate({
+      version: 1,
+      mediaType: 'image',
+      mode: 'sync',
+      create: {
+        method: 'POST',
+        path: '/images/generations',
+        contentType: 'application/json',
+        bodyTemplate: {
+          model: '{{model}}',
+          prompt: '{{prompt}}',
+          size: '{{size}}',
+          quality: '{{quality}}',
+        },
+      },
+      response: {
+        outputUrlPath: '$.data[0].url',
+      },
+    })
+
+    expect(imageResult.ok).toBe(true)
+
+    const videoResult = validateOpenAICompatMediaTemplate({
+      version: 1,
+      mediaType: 'video',
+      mode: 'async',
+      create: {
+        method: 'POST',
+        path: '/videos',
+        contentType: 'application/json',
+        bodyTemplate: {
+          model: '{{model}}',
+          prompt: '{{prompt}}',
+          resolution: '{{resolution}}',
+          ratio: '{{ratio}}',
+          duration: '{{duration}}',
+          generate_audio: '{{generate_audio}}',
+          watermark: '{{watermark}}',
+          content: '{{content}}',
+        },
+      },
+      status: {
+        method: 'GET',
+        path: '/videos/{{task_id}}',
+      },
+      response: {
+        taskIdPath: '$.id',
+        statusPath: '$.status',
+        outputUrlPath: '$.metadata.url',
+      },
+      polling: {
+        intervalMs: 5000,
+        timeoutMs: 900000,
+        doneStates: ['completed'],
+        failStates: ['failed'],
+      },
+    })
+
+    expect(videoResult.ok).toBe(true)
+  })
+
   it('rejects unsupported placeholders', () => {
     const result = validateOpenAICompatMediaTemplate({
       version: 1,

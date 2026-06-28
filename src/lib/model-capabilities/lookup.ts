@@ -278,28 +278,26 @@ export function resolveGenerationOptionsForModel(input: {
   let normalizedSelection = { ...selection }
   const autofillIssues: CapabilitySelectionValidationIssue[] = []
 
-  // V7: 针对 image 模型缺少 resolution 的情况，如果 catalog 中声明了 resolutionOptions，
-  // 且用户在配置中完全未设置该字段，则自动使用第一个可选值作为默认值，提升 UI/UX。
+  // Image models can be used immediately after configuration. If catalog fields
+  // such as resolution/quality are required but unset, use the first declared
+  // option as the default request value.
   if (input.modelType === 'image') {
     const optionFields = getCapabilityOptionFields(input.modelType, input.capabilities)
-    const hasResolutionOptions = Array.isArray(optionFields.resolution) && optionFields.resolution.length > 0
-    const hasResolutionInSelection = Object.prototype.hasOwnProperty.call(normalizedSelection, 'resolution')
+    for (const [field, allowedValues] of Object.entries(optionFields)) {
+      const hasFieldInSelection = Object.prototype.hasOwnProperty.call(normalizedSelection, field)
+      const firstValue = allowedValues[0]
+      if (hasFieldInSelection || firstValue === undefined) continue
 
-    if (hasResolutionOptions && !hasResolutionInSelection) {
-      const firstResolution = optionFields.resolution[0]
-
-      // 只有在 capabilities 确实声明了 resolutionOptions，且 validate 阶段报告了
-      // 「resolution 必填但缺失」的情况下，才进行自动补全，避免掩盖其他问题。
-      const missingResolutionIssue = precheckIssues.find(
+      const missingFieldIssue = precheckIssues.find(
         (issue) =>
           issue.code === 'CAPABILITY_REQUIRED'
-          && issue.field === `capabilities.${input.modelKey}.resolution`,
+          && issue.field === `capabilities.${input.modelKey}.${field}`,
       )
 
-      if (missingResolutionIssue && optionFields.resolution.includes(firstResolution)) {
+      if (missingFieldIssue && allowedValues.includes(firstValue)) {
         normalizedSelection = {
           ...normalizedSelection,
-          resolution: firstResolution,
+          [field]: firstValue,
         }
       }
     }

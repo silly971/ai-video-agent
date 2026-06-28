@@ -12,6 +12,8 @@ import { logWarn as _ulogWarn } from '@/lib/logging/core'
 export interface GenerateOptions {
     aspectRatio?: string      // 宽高比，如 '16:9', '3:4'
     resolution?: string        // 分辨率，如 '2K', '4K'
+    size?: string              // 图像尺寸，如 '1024x1024'
+    quality?: string           // 图像清晰度，如 'standard', 'hd', 'high'
     outputFormat?: string      // 输出格式，如 'png', 'jpg'
     duration?: number          // 视频时长（秒）
     fps?: number              // 帧率

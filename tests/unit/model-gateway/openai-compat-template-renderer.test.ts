@@ -62,6 +62,86 @@ describe('model-gateway openai-compat template renderer', () => {
     }))
   })
 
+  it('renders image quality and seedance video content into JSON bodies', async () => {
+    const imageRequest = await buildRenderedTemplateRequest({
+      baseUrl: 'https://compat.example.com/v1',
+      endpoint: {
+        method: 'POST',
+        path: '/images/generations',
+        contentType: 'application/json',
+        bodyTemplate: {
+          model: '{{model}}',
+          prompt: '{{prompt}}',
+          size: '{{size}}',
+          quality: '{{quality}}',
+        },
+      },
+      variables: buildTemplateVariables({
+        model: 'gpt-image-1',
+        prompt: 'poster',
+        size: '1024x1024',
+        extra: { quality: 'high' },
+      }),
+      defaultAuthHeader: 'Bearer sk-test',
+    })
+
+    expect(imageRequest.body).toBe(JSON.stringify({
+      model: 'gpt-image-1',
+      prompt: 'poster',
+      size: '1024x1024',
+      quality: 'high',
+    }))
+
+    const videoRequest = await buildRenderedTemplateRequest({
+      baseUrl: 'https://seedance.example.com/v1',
+      endpoint: {
+        method: 'POST',
+        path: '/videos',
+        contentType: 'application/json',
+        bodyTemplate: {
+          model: '{{model}}',
+          prompt: '{{prompt}}',
+          resolution: '{{resolution}}',
+          ratio: '{{ratio}}',
+          duration: '{{duration}}',
+          generate_audio: '{{generate_audio}}',
+          watermark: '{{watermark}}',
+          content: '{{content}}',
+        },
+      },
+      variables: buildTemplateVariables({
+        model: 'doubao-seedance-2-0-260128',
+        prompt: 'animate',
+        image: 'https://cdn.example.com/start.png',
+        aspectRatio: '16:9',
+        resolution: '720p',
+        duration: 5,
+        extra: {
+          generateAudio: false,
+          watermark: true,
+        },
+      }),
+      defaultAuthHeader: 'Bearer sk-test',
+    })
+
+    expect(videoRequest.body).toBe(JSON.stringify({
+      model: 'doubao-seedance-2-0-260128',
+      prompt: 'animate',
+      resolution: '720p',
+      ratio: '16:9',
+      duration: 5,
+      generate_audio: false,
+      watermark: true,
+      content: [
+        {
+          type: 'image_url',
+          role: 'first_frame',
+          image_url: { url: 'https://cdn.example.com/start.png' },
+        },
+      ],
+    }))
+  })
+
   it('deduplicates /v1 prefix when base url already ends with /v1', async () => {
     const request = await buildRenderedTemplateRequest({
       baseUrl: 'https://yunwu.ai/v1',

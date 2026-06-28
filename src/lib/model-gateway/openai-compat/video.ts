@@ -28,7 +28,18 @@ const OPENAI_COMPAT_VIDEO_OPTION_KEYS = new Set([
   'aspect_ratio',
   'size',
   'generateAudio',
+  'generate_audio',
   'generationMode',
+  'generation_mode',
+  'ratio',
+  'content',
+  'watermark',
+  'returnLastFrame',
+  'return_last_frame',
+  'lastFrameImage',
+  'last_frame_image',
+  'lastFrameImageUrl',
+  'last_frame_image_url',
 ])
 
 function assertAllowedOptions(options: Record<string, unknown>) {

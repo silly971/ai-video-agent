@@ -59,6 +59,8 @@ export async function generateImage(
         outputFormat?: string
         keepOriginalAspectRatio?: boolean  // 🔥 编辑时保持原图比例
         size?: string  // 🔥 直接指定像素尺寸如 "5016x3344"（优先于 aspectRatio）
+        quality?: string
+        [key: string]: string | number | boolean | string[] | undefined
     }
 ): Promise<GenerateResult> {
     const selection = await resolveModelSelection(userId, modelKey, 'image')
@@ -105,9 +107,6 @@ export async function generateImage(
     const { referenceImages, ...generatorOptions } = options || {}
     if (gatewayRoute === 'openai-compat') {
         const compatTemplate = selection.compatMediaTemplate
-        if (providerKey === 'openai-compatible' && !compatTemplate) {
-            throw new Error(`MODEL_COMPAT_MEDIA_TEMPLATE_REQUIRED: ${selection.modelKey}`)
-        }
         if (compatTemplate) {
             return await generateImageViaOpenAICompatTemplate({
                 userId,
@@ -229,9 +228,6 @@ export async function generateVideo(
     const { prompt, ...providerOptions } = options || {}
     if (gatewayRoute === 'openai-compat') {
         const compatTemplate = selection.compatMediaTemplate
-        if (providerKey === 'openai-compatible' && !compatTemplate) {
-            throw new Error(`MODEL_COMPAT_MEDIA_TEMPLATE_REQUIRED: ${selection.modelKey}`)
-        }
         if (compatTemplate) {
             return await generateVideoViaOpenAICompatTemplate({
                 userId,

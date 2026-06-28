@@ -14,7 +14,7 @@ const CAPABILITY_NAMESPACES = new Set(['llm', 'image', 'video', 'audio', 'lipsyn
 const MODEL_TYPES = new Set(['llm', 'image', 'video', 'audio', 'lipsync'])
 const CAPABILITY_NAMESPACE_ALLOWED_FIELDS = {
   llm: new Set(['reasoningEffortOptions', 'fieldI18n']),
-  image: new Set(['resolutionOptions', 'fieldI18n']),
+  image: new Set(['resolutionOptions', 'qualityOptions', 'fieldI18n']),
   video: new Set([
     'durationOptions',
     'fpsOptions',
@@ -33,6 +33,7 @@ const CAPABILITY_NAMESPACE_I18N_FIELDS = {
   },
   image: {
     resolution: 'resolutionOptions',
+    quality: 'qualityOptions',
   },
   video: {
     duration: 'durationOptions',
@@ -225,6 +226,9 @@ function validateCapabilities(modelType, capabilities) {
       validateAllowedFields(issues, 'image', image)
       if (image.resolutionOptions !== undefined && !isStringArray(image.resolutionOptions)) {
         pushIssue(issues, 'capabilities.image.resolutionOptions', 'must be string array')
+      }
+      if (image.qualityOptions !== undefined && !isStringArray(image.qualityOptions)) {
+        pushIssue(issues, 'capabilities.image.qualityOptions', 'must be string array')
       }
       validateFieldI18nMap(issues, 'image', image)
     }

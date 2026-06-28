@@ -152,7 +152,8 @@
     "analysis": "Analysis Model",
     "image": "Image Generation",
     "video": "Video Generation",
-    "resolution": "Image Resolution"
+    "resolution": "Image Resolution",
+    "quality": "Image Quality"
   },
   "workflowConcurrency": {
     "analysis": "Analysis Concurrency",

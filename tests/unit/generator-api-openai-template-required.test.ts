@@ -57,7 +57,7 @@ vi.mock('@/lib/providers/siliconflow', () => ({
 
 import { generateImage, generateVideo } from '@/lib/generator-api'
 
-describe('generator-api requires compat media template for openai-compatible media', () => {
+describe('generator-api falls back to direct openai-compatible media calls', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     resolveModelGatewayRouteMock.mockReturnValue('openai-compat')
@@ -69,7 +69,7 @@ describe('generator-api requires compat media template for openai-compatible med
     })
   })
 
-  it('throws for image model without compatMediaTemplate', async () => {
+  it('uses direct image generation when compatMediaTemplate is missing', async () => {
     resolveModelSelectionMock.mockResolvedValueOnce({
       provider: 'openai-compatible:oa-1',
       modelId: 'gpt-image-1',
@@ -80,13 +80,20 @@ describe('generator-api requires compat media template for openai-compatible med
 
     await expect(
       generateImage('user-1', 'openai-compatible:oa-1::gpt-image-1', 'draw cat'),
-    ).rejects.toThrow('MODEL_COMPAT_MEDIA_TEMPLATE_REQUIRED')
+    ).resolves.toEqual({ success: true, imageUrl: 'image' })
 
-    expect(generateImageViaOpenAICompatMock).not.toHaveBeenCalled()
+    expect(generateImageViaOpenAICompatMock).toHaveBeenCalledTimes(1)
+    expect(generateImageViaOpenAICompatMock).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-1',
+      providerId: 'openai-compatible:oa-1',
+      modelId: 'gpt-image-1',
+      prompt: 'draw cat',
+      profile: 'openai-compatible',
+    }))
     expect(generateImageViaOpenAICompatTemplateMock).not.toHaveBeenCalled()
   })
 
-  it('throws for video model without compatMediaTemplate', async () => {
+  it('uses direct video generation when compatMediaTemplate is missing', async () => {
     resolveModelSelectionMock.mockResolvedValueOnce({
       provider: 'openai-compatible:oa-1',
       modelId: 'veo3.1',
@@ -97,9 +104,17 @@ describe('generator-api requires compat media template for openai-compatible med
 
     await expect(
       generateVideo('user-1', 'openai-compatible:oa-1::veo3.1', 'https://example.com/a.png', { prompt: 'animate' }),
-    ).rejects.toThrow('MODEL_COMPAT_MEDIA_TEMPLATE_REQUIRED')
+    ).resolves.toEqual({ success: true, videoUrl: 'video' })
 
-    expect(generateVideoViaOpenAICompatMock).not.toHaveBeenCalled()
+    expect(generateVideoViaOpenAICompatMock).toHaveBeenCalledTimes(1)
+    expect(generateVideoViaOpenAICompatMock).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-1',
+      providerId: 'openai-compatible:oa-1',
+      modelId: 'veo3.1',
+      imageUrl: 'https://example.com/a.png',
+      prompt: 'animate',
+      profile: 'openai-compatible',
+    }))
     expect(generateVideoViaOpenAICompatTemplateMock).not.toHaveBeenCalled()
   })
 })

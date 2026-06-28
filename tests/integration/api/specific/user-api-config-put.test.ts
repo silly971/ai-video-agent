@@ -1163,6 +1163,12 @@ describe('api specific - user api-config PUT provider uniqueness', () => {
       mode: 'sync',
       create: {
         path: '/images/generations',
+        bodyTemplate: {
+          model: '{{model}}',
+          prompt: '{{prompt}}',
+          size: '{{size}}',
+          quality: '{{quality}}',
+        },
       },
     })
     expect(savedModel?.compatMediaTemplateSource).toBe('manual')
@@ -1203,25 +1209,25 @@ describe('api specific - user api-config PUT provider uniqueness', () => {
       mode: 'async',
       create: {
         path: '/videos',
-        contentType: 'multipart/form-data',
-        multipartFileFields: ['input_reference'],
+        contentType: 'application/json',
         bodyTemplate: {
           model: '{{model}}',
           prompt: '{{prompt}}',
-          seconds: '{{duration}}',
-          size: '{{size}}',
-          input_reference: '{{image}}',
+          resolution: '{{resolution}}',
+          ratio: '{{ratio}}',
+          duration: '{{duration}}',
+          generate_audio: '{{generate_audio}}',
+          watermark: '{{watermark}}',
+          content: '{{content}}',
         },
       },
       status: {
         path: '/videos/{{task_id}}',
       },
-      content: {
-        path: '/videos/{{task_id}}/content',
-      },
       response: {
         taskIdPath: '$.id',
         statusPath: '$.status',
+        outputUrlPath: '$.metadata.url',
       },
     })
     expect(savedModel?.compatMediaTemplateSource).toBe('manual')

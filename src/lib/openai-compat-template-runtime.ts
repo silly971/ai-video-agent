@@ -87,6 +87,58 @@ function toTemplateVariableValue(value: unknown): TemplateBodyValue | undefined 
   return output
 }
 
+function readStringOption(source: Record<string, unknown> | undefined, ...keys: string[]): string | undefined {
+  if (!source) return undefined
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return undefined
+}
+
+function readBooleanOption(source: Record<string, unknown> | undefined, ...keys: string[]): boolean | undefined {
+  if (!source) return undefined
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'boolean') return value
+  }
+  return undefined
+}
+
+function buildImageUrlContentItem(url: string, role: string): TemplateBodyValue {
+  return {
+    type: 'image_url',
+    role,
+    image_url: { url },
+  }
+}
+
+function buildDefaultSeedanceContent(input: {
+  image?: string
+  images?: string[]
+  extra?: Record<string, unknown>
+}): TemplateBodyValue[] {
+  const explicitContent = input.extra ? toTemplateVariableValue(input.extra.content) : undefined
+  if (Array.isArray(explicitContent)) return explicitContent
+
+  const content: TemplateBodyValue[] = []
+  const firstFrame = readStringOption(input.extra, 'firstFrameImageUrl', 'first_frame_image_url') || input.image
+  const lastFrame = readStringOption(input.extra, 'lastFrameImageUrl', 'last_frame_image_url', 'lastFrameImage', 'last_frame_image')
+  const generationMode = readStringOption(input.extra, 'generationMode', 'generation_mode')
+
+  if (generationMode === 'reference_image') {
+    const references = input.images && input.images.length > 0 ? input.images : firstFrame ? [firstFrame] : []
+    for (const reference of references) {
+      if (reference) content.push(buildImageUrlContentItem(reference, 'reference_image'))
+    }
+    return content
+  }
+
+  if (firstFrame) content.push(buildImageUrlContentItem(firstFrame, 'first_frame'))
+  if (lastFrame) content.push(buildImageUrlContentItem(lastFrame, 'last_frame'))
+  return content
+}
+
 function appendTemplateOptionVariables(
   target: TemplateVariableMap,
   source: Record<string, unknown> | undefined,
@@ -440,9 +492,23 @@ export function buildTemplateVariables(input: {
     image: input.image || '',
     images: input.images || [],
     aspect_ratio: input.aspectRatio || '',
+    ratio: readStringOption(input.extra, 'ratio') || input.aspectRatio || '',
     duration: input.duration ?? null,
     resolution: input.resolution || '',
     size: input.size || '',
+    quality: readStringOption(input.extra, 'quality') || '',
+    content: buildDefaultSeedanceContent({
+      image: input.image,
+      images: input.images,
+      extra: input.extra,
+    }),
+    generate_audio: readBooleanOption(input.extra, 'generate_audio', 'generateAudio') ?? true,
+    generateAudio: readBooleanOption(input.extra, 'generateAudio', 'generate_audio') ?? true,
+    watermark: readBooleanOption(input.extra, 'watermark') ?? false,
+    return_last_frame: readBooleanOption(input.extra, 'return_last_frame', 'returnLastFrame') ?? false,
+    returnLastFrame: readBooleanOption(input.extra, 'returnLastFrame', 'return_last_frame') ?? false,
+    last_frame_image: readStringOption(input.extra, 'last_frame_image', 'lastFrameImage', 'lastFrameImageUrl', 'last_frame_image_url') || '',
+    lastFrameImage: readStringOption(input.extra, 'lastFrameImage', 'last_frame_image', 'lastFrameImageUrl', 'last_frame_image_url') || '',
     task_id: input.taskId || '',
   }
   appendTemplateOptionVariables(variables, input.extra)

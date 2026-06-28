@@ -31,6 +31,7 @@ export interface LLMCapabilities {
 
 export interface ImageCapabilities {
   resolutionOptions?: string[]
+  qualityOptions?: string[]
   fieldI18n?: CapabilityFieldI18nMap
 }
 
@@ -85,6 +86,7 @@ const LLM_ALLOWED_FIELDS = new Set<keyof LLMCapabilities>([
 
 const IMAGE_ALLOWED_FIELDS = new Set<keyof ImageCapabilities>([
   'resolutionOptions',
+  'qualityOptions',
   'fieldI18n',
 ])
 
@@ -288,8 +290,18 @@ function validateImageCapabilities(issues: CapabilityValidationIssue[], raw: unk
     })
   }
 
+  const qualityOptions = raw.qualityOptions
+  if (qualityOptions !== undefined && !isStringArray(qualityOptions)) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.image.qualityOptions',
+      message: 'qualityOptions must be a non-empty string array',
+    })
+  }
+
   validateFieldI18nMap(issues, 'image', raw.fieldI18n, {
     resolution: isStringArray(resolutionOptions) ? resolutionOptions : undefined,
+    quality: isStringArray(qualityOptions) ? qualityOptions : undefined,
   })
 }
 

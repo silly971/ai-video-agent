@@ -988,6 +988,8 @@ function getDefaultMediaTemplate(type: 'image' | 'video'): OpenAICompatMediaTemp
         bodyTemplate: {
           model: '{{model}}',
           prompt: '{{prompt}}',
+          size: '{{size}}',
+          quality: '{{quality}}',
         },
       },
       response: {
@@ -1005,34 +1007,33 @@ function getDefaultMediaTemplate(type: 'image' | 'video'): OpenAICompatMediaTemp
     create: {
       method: 'POST',
       path: '/videos',
-      contentType: 'multipart/form-data',
-      multipartFileFields: ['input_reference'],
+      contentType: 'application/json',
       bodyTemplate: {
         model: '{{model}}',
         prompt: '{{prompt}}',
-        seconds: '{{duration}}',
-        size: '{{size}}',
-        input_reference: '{{image}}',
+        resolution: '{{resolution}}',
+        ratio: '{{ratio}}',
+        duration: '{{duration}}',
+        generate_audio: '{{generate_audio}}',
+        watermark: '{{watermark}}',
+        content: '{{content}}',
       },
     },
     status: {
       method: 'GET',
       path: '/videos/{{task_id}}',
     },
-    content: {
-      method: 'GET',
-      path: '/videos/{{task_id}}/content',
-    },
     response: {
       taskIdPath: '$.id',
       statusPath: '$.status',
+      outputUrlPath: '$.metadata.url',
       errorPath: '$.error.message',
     },
     polling: {
-      intervalMs: 3000,
-      timeoutMs: 600000,
-      doneStates: ['completed', 'succeeded'],
-      failStates: ['failed', 'error', 'canceled'],
+      intervalMs: 5000,
+      timeoutMs: 900000,
+      doneStates: ['completed'],
+      failStates: ['failed'],
     },
   }
 }
