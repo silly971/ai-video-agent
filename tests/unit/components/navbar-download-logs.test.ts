@@ -1,17 +1,11 @@
 import * as React from 'react'
 import { createElement } from 'react'
 import type { ComponentProps, ReactElement } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
 import type { AbstractIntlMessages } from 'next-intl'
 import Navbar from '@/components/Navbar'
-
-const useSessionMock = vi.fn()
-
-vi.mock('next-auth/react', () => ({
-  useSession: () => useSessionMock(),
-}))
 
 vi.mock('next/image', () => ({
   default: ({ alt, ...props }: { alt: string } & Record<string, unknown>) => createElement('img', { alt, ...props }),
@@ -53,8 +47,6 @@ const messages = {
     assetHub: '资产中心',
     profile: '设置中心',
     downloadLogs: '下载日志',
-    signin: '登录',
-    signup: '注册',
   },
   common: {
     appName: 'waoowaoo',
@@ -81,36 +73,16 @@ const renderWithIntl = (node: ReactElement) => {
   )
 }
 
-describe('Navbar download logs entry', () => {
-  beforeEach(() => {
-    useSessionMock.mockReset()
-  })
-
-  it('renders the download logs entry on the far-right action group for signed-in users', () => {
+describe('Navbar desktop actions', () => {
+  it('renders Agent navigation and log download without a login session', () => {
     Reflect.set(globalThis, 'React', React)
-    useSessionMock.mockReturnValue({
-      data: { user: { name: 'Earth' } },
-      status: 'authenticated',
-    })
 
     const html = renderWithIntl(createElement(Navbar))
 
     expect(html).toContain('下载日志')
-    expect(html).toContain('href="/home"')
+    expect(html).toContain('href="/agent"')
+    expect(html).toContain('Agent')
     expect(html).toContain('href="/api/admin/download-logs"')
     expect(html).toContain('download=""')
-  })
-
-  it('does not render the download logs entry for signed-out users', () => {
-    Reflect.set(globalThis, 'React', React)
-    useSessionMock.mockReturnValue({
-      data: null,
-      status: 'unauthenticated',
-    })
-
-    const html = renderWithIntl(createElement(Navbar))
-
-    expect(html).not.toContain('下载日志')
-    expect(html).not.toContain('/api/admin/download-logs')
   })
 })

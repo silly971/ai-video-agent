@@ -1,33 +1,15 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useSession, signOut } from 'next-auth/react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import Navbar from '@/components/Navbar'
 import ApiConfigTab from './components/ApiConfigTab'
 import { AppIcon } from '@/components/ui/icons'
-import { useRouter } from '@/i18n/navigation'
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
   const t = useTranslations('profile')
-  const tc = useTranslations('common')
 
   // 主要分区：扣费记录 / API配置
   const [activeSection, setActiveSection] = useState<'billing' | 'apiConfig'>('apiConfig')
-
-  useEffect(() => {
-    if (status === 'loading') return
-    if (!session) { router.push({ pathname: '/auth/signin' }); return }
-  }, [router, session, status])
-
-  if (status === 'loading' || !session) {
-    return (
-      <div className="glass-page flex min-h-screen items-center justify-center">
-        <div className="text-[var(--glass-text-secondary)]">{tc('loading')}</div>
-      </div>
-    )
-  }
 
   const noBillingText = t('openSourceNoBilling')
 
@@ -42,11 +24,11 @@ export default function ProfilePage() {
           <div className="w-64 flex-shrink-0">
             <div className="glass-surface-elevated h-full flex flex-col p-5">
 
-              {/* 用户信息 */}
-              <div className="mb-6">
-                <div className="mb-4">
-                  <h2 className="font-semibold text-[var(--glass-text-primary)]">{session.user?.name || t('user')}</h2>
-                  <p className="text-xs text-[var(--glass-text-tertiary)]">{t('personalAccount')}</p>
+                {/* 用户信息 */}
+                <div className="mb-6">
+                  <div className="mb-4">
+                  <h2 className="font-semibold text-[var(--glass-text-primary)]">本地 Agent</h2>
+                  <p className="text-xs text-[var(--glass-text-tertiary)]">桌面端本地身份</p>
                 </div>
 
                 {/* 余额卡片 */}
@@ -80,14 +62,9 @@ export default function ProfilePage() {
                   <span className="font-medium">{t('billingRecords')}</span>
                 </button>
               </nav>
-              {/* 退出登录 */}
-              <button
-                onClick={() => signOut({ callbackUrl: '/' })}
-                className="glass-btn-base glass-btn-tone-danger mt-auto flex items-center gap-2 px-4 py-3 text-sm rounded-xl transition-all cursor-pointer"
-              >
-                <AppIcon name="logout" className="w-4 h-4" />
-                {t('logout')}
-              </button>
+              <div className="mt-auto rounded-xl border border-[var(--glass-stroke-soft)] bg-[var(--glass-bg-muted)] p-3 text-xs leading-5 text-[var(--glass-text-tertiary)]">
+                桌面版使用本地账号保存模型配置和项目数据，无需账号流程。
+              </div>
             </div>
           </div>
 

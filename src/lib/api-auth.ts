@@ -12,6 +12,7 @@ import { withPrismaRetry } from '@/lib/prisma-retry'
 import { extractModelKey } from '@/lib/config-service'
 import { getErrorSpec, type UnifiedErrorCode } from '@/lib/errors/codes'
 import { getLogContext, setLogContext } from '@/lib/logging/context'
+import { isDesktopRuntime } from '@/lib/runtime/desktop'
 
 // ============================================================
 // 类型定义
@@ -24,6 +25,12 @@ export interface AuthSession {
         email?: string | null
     }
 }
+
+const DESKTOP_USER_ID = 'desktop-local-user'
+const DESKTOP_USER_NAME = 'desktop-local-agent'
+const DESKTOP_USER_EMAIL = 'desktop-local-agent@local.invalid'
+
+let desktopSessionPromise: Promise<AuthSession> | null = null
 
 function bindAuthLogContext(session: AuthSession, projectId?: string) {
     const context = getLogContext()
@@ -53,6 +60,50 @@ async function getInternalTaskSession(): Promise<AuthSession | null> {
             name: 'internal-worker',
             email: null,
         }
+    }
+}
+
+async function ensureDesktopSession(): Promise<AuthSession> {
+    await withPrismaRetry(() =>
+        prisma.user.upsert({
+            where: { id: DESKTOP_USER_ID },
+            update: {
+                name: DESKTOP_USER_NAME,
+                email: DESKTOP_USER_EMAIL,
+            },
+            create: {
+                id: DESKTOP_USER_ID,
+                name: DESKTOP_USER_NAME,
+                email: DESKTOP_USER_EMAIL,
+                password: null,
+            },
+        })
+    )
+
+    await withPrismaRetry(() =>
+        prisma.userPreference.upsert({
+            where: { userId: DESKTOP_USER_ID },
+            update: {},
+            create: { userId: DESKTOP_USER_ID },
+        })
+    )
+
+    return {
+        user: {
+            id: DESKTOP_USER_ID,
+            name: DESKTOP_USER_NAME,
+            email: DESKTOP_USER_EMAIL,
+        },
+    }
+}
+
+async function getDesktopSession(): Promise<AuthSession> {
+    desktopSessionPromise ??= ensureDesktopSession()
+    try {
+        return await desktopSessionPromise
+    } catch (error) {
+        desktopSessionPromise = null
+        throw error
     }
 }
 
@@ -173,6 +224,7 @@ export function serverError(message = 'Internal server error') {
 export async function getAuthSession(): Promise<AuthSession | null> {
     const internalSession = await getInternalTaskSession()
     if (internalSession) return internalSession
+    if (isDesktopRuntime()) return getDesktopSession()
     const session = await getServerSession(authOptions)
     return session as AuthSession | null
 }

@@ -83,6 +83,10 @@ tmp/
 # internal AI agent config (not for public)
 AGENTS.md
 agent/
+!src/app/[locale]/agent/
+!src/app/[locale]/agent/**
+!src/app/\[locale\]/agent/
+!src/app/\[locale\]/agent/**
 
 # internal docs (not for public)
 docs/

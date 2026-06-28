@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import LanguageSwitcher from './LanguageSwitcher'
 import { AppIcon } from '@/components/ui/icons'
@@ -11,9 +10,7 @@ import { useGithubReleaseUpdate } from '@/hooks/common/useGithubReleaseUpdate'
 import { Link } from '@/i18n/navigation'
 import { buildAuthenticatedHomeTarget } from '@/lib/home/default-route'
 
-
 export default function Navbar() {
-  const { data: session, status } = useSession()
   const t = useTranslations('nav')
   const tc = useTranslations('common')
   const { currentVersion, update, shouldPulse, showModal, openModal, dismissCurrentUpdate, checkNow } = useGithubReleaseUpdate()
@@ -26,23 +23,26 @@ export default function Navbar() {
     setCheckMsg(null)
     setCheckMsgFading(false)
     setManualChecking(true)
-    const minSpin = new Promise(r => setTimeout(r, 1000))
+    const minSpin = new Promise((resolve) => setTimeout(resolve, 1000))
     await Promise.all([checkNow(), minSpin])
     setManualChecking(false)
     setTimeout(() => {
       setCheckMsg('upToDate')
       setTimeout(() => setCheckMsgFading(true), 2000)
-      setTimeout(() => { setCheckMsg(null); setCheckMsgFading(false) }, 3000)
+      setTimeout(() => {
+        setCheckMsg(null)
+        setCheckMsgFading(false)
+      }, 3000)
     }, 100)
   }
 
   return (
     <>
       <nav className="glass-nav sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-2">
-              <Link href={session ? buildAuthenticatedHomeTarget() : { pathname: '/' }} className="group">
+              <Link href={buildAuthenticatedHomeTarget()} className="group">
                 <Image
                   src="/logo-small.png?v=1"
                   alt={tc('appName')}
@@ -55,10 +55,11 @@ export default function Navbar() {
                 type="button"
                 onClick={openModal}
                 disabled={!update}
-                className={`relative inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold tracking-[0.02em] transition-all ${update
-                  ? 'border-[var(--glass-tone-warning-fg)]/40 bg-[linear-gradient(135deg,var(--glass-tone-warning-bg),var(--glass-bg-surface-strong))] text-[var(--glass-tone-warning-fg)] shadow-[0_8px_24px_-16px_rgba(245,158,11,0.9)] hover:brightness-105'
-                  : 'border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] text-[var(--glass-text-secondary)] hover:border-[var(--glass-stroke-focus)] hover:text-[var(--glass-text-primary)] disabled:cursor-default'
-                  }`}
+                className={`relative inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold transition-all ${
+                  update
+                    ? 'border-[var(--glass-tone-warning-fg)]/40 bg-[linear-gradient(135deg,var(--glass-tone-warning-bg),var(--glass-bg-surface-strong))] text-[var(--glass-tone-warning-fg)] shadow-[0_8px_24px_-16px_rgba(245,158,11,0.9)] hover:brightness-105'
+                    : 'border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] text-[var(--glass-text-secondary)] hover:border-[var(--glass-stroke-focus)] hover:text-[var(--glass-text-primary)] disabled:cursor-default'
+                }`}
                 aria-label={tc('updateNotice.openDialog')}
               >
                 <span className="inline-flex items-center gap-1.5">
@@ -67,7 +68,7 @@ export default function Navbar() {
                   {update ? (
                     <span className="relative inline-flex items-center">
                       {shouldPulse ? <span className="absolute -inset-1.5 animate-ping rounded-full bg-[var(--glass-tone-warning-fg)] opacity-20" /> : null}
-                      <span className="relative inline-flex items-center gap-1 rounded-full bg-[var(--glass-tone-warning-fg)]/16 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em]">
+                      <span className="relative inline-flex items-center gap-1 rounded-full bg-[var(--glass-tone-warning-fg)]/16 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
                         <AppIcon name="upload" className="h-3 w-3" />
                         {tc('updateNotice.updateTag')}
                       </span>
@@ -79,85 +80,66 @@ export default function Navbar() {
                 type="button"
                 onClick={() => void handleCheckUpdate()}
                 disabled={manualChecking}
-                className="rounded-full p-1.5 text-[var(--glass-text-tertiary)] hover:bg-[var(--glass-bg-muted)] hover:text-[var(--glass-text-secondary)] transition-colors disabled:opacity-40"
+                className="rounded-full p-1.5 text-[var(--glass-text-tertiary)] transition-colors hover:bg-[var(--glass-bg-muted)] hover:text-[var(--glass-text-secondary)] disabled:opacity-40"
                 title={tc('updateNotice.checkUpdate')}
               >
                 <AppIcon name="refresh" className={`h-3.5 w-3.5 ${manualChecking ? 'animate-spin' : ''}`} />
               </button>
-              {checkMsg === 'upToDate' && !update && (
+              {checkMsg === 'upToDate' && !update ? (
                 <span
-                  className="text-[11px] text-[var(--glass-tone-success-fg)] font-medium transition-opacity duration-1000"
+                  className="text-[11px] font-medium text-[var(--glass-tone-success-fg)] transition-opacity duration-1000"
                   style={{ opacity: checkMsgFading ? 0 : 1 }}
                 >
-                  ✓ {tc('updateNotice.upToDate')}
+                  {tc('updateNotice.upToDate')}
                 </span>
-              )}
+              ) : null}
             </div>
-            <div className="flex items-center space-x-6">
-              {status === 'loading' ? (
-                /* Session 加载中骨架屏 */
-                <div className="flex items-center space-x-4">
-                  <div className="h-4 w-16 rounded-full bg-[var(--glass-bg-muted)] animate-pulse" />
-                  <div className="h-4 w-16 rounded-full bg-[var(--glass-bg-muted)] animate-pulse" />
-                  <div className="h-8 w-20 rounded-lg bg-[var(--glass-bg-muted)] animate-pulse" />
-                </div>
-              ) : session ? (
-                <>
-                  <Link
-                    href={{ pathname: '/workspace' }}
-                    className="text-sm text-[var(--glass-text-secondary)] hover:text-[var(--glass-text-primary)] font-medium transition-colors flex items-center gap-1"
-                  >
-                    <AppIcon name="monitor" className="w-4 h-4" />
-                    {t('workspace')}
-                  </Link>
-                  <Link
-                    href={{ pathname: '/workspace/asset-hub' }}
-                    className="text-sm text-[var(--glass-text-secondary)] hover:text-[var(--glass-text-primary)] font-medium transition-colors flex items-center gap-1"
-                  >
-                    <AppIcon name="folderHeart" className="w-4 h-4" />
-                    {t('assetHub')}
-                  </Link>
-                  <Link
-                    href={{ pathname: '/profile' }}
-                    className="text-sm text-[var(--glass-text-secondary)] hover:text-[var(--glass-text-primary)] font-medium transition-colors flex items-center gap-1"
-                    title={t('profile')}
-                  >
-                    <AppIcon name="userRoundCog" className="w-5 h-5" />
-                    {t('profile')}
-                  </Link>
-                  <LanguageSwitcher />
-                  <a
-                    href={downloadLogsHref}
-                    download
-                    className="text-sm text-[var(--glass-text-secondary)] hover:text-[var(--glass-text-primary)] font-medium transition-colors flex items-center gap-1"
-                    title={t('downloadLogs')}
-                  >
-                    <AppIcon name="download" className="w-4 h-4" />
-                    {t('downloadLogs')}
-                  </a>
-                </>
 
-              ) : (
-                <>
-                  <Link
-                    href={{ pathname: '/auth/signin' }}
-                    className="text-sm text-[var(--glass-text-secondary)] hover:text-[var(--glass-text-primary)] font-medium transition-colors"
-                  >
-                    {t('signin')}
-                  </Link>
-                  <Link
-                    href={{ pathname: '/auth/signup' }}
-                    className="glass-btn-base glass-btn-primary px-4 py-2 text-sm font-medium"
-                  >
-                    {t('signup')}
-                  </Link>
-                  <LanguageSwitcher />
-                </>
-              )}
+            <div className="flex items-center space-x-6">
+              <Link
+                href={buildAuthenticatedHomeTarget()}
+                className="flex items-center gap-1 text-sm font-medium text-[var(--glass-text-secondary)] transition-colors hover:text-[var(--glass-text-primary)]"
+              >
+                <AppIcon name="sparkles" className="h-4 w-4" />
+                Agent
+              </Link>
+              <Link
+                href={{ pathname: '/workspace' }}
+                className="flex items-center gap-1 text-sm font-medium text-[var(--glass-text-secondary)] transition-colors hover:text-[var(--glass-text-primary)]"
+              >
+                <AppIcon name="monitor" className="h-4 w-4" />
+                {t('workspace')}
+              </Link>
+              <Link
+                href={{ pathname: '/workspace/asset-hub' }}
+                className="flex items-center gap-1 text-sm font-medium text-[var(--glass-text-secondary)] transition-colors hover:text-[var(--glass-text-primary)]"
+              >
+                <AppIcon name="folderHeart" className="h-4 w-4" />
+                {t('assetHub')}
+              </Link>
+              <Link
+                href={{ pathname: '/profile' }}
+                className="flex items-center gap-1 text-sm font-medium text-[var(--glass-text-secondary)] transition-colors hover:text-[var(--glass-text-primary)]"
+                title={t('profile')}
+              >
+                <AppIcon name="userRoundCog" className="h-5 w-5" />
+                {t('profile')}
+              </Link>
+              <LanguageSwitcher />
+              <a
+                href={downloadLogsHref}
+                download
+                className="flex items-center gap-1 text-sm font-medium text-[var(--glass-text-secondary)] transition-colors hover:text-[var(--glass-text-primary)]"
+                title={t('downloadLogs')}
+              >
+                <AppIcon name="download" className="h-4 w-4" />
+                {t('downloadLogs')}
+              </a>
             </div>
           </div>
         </div>
       </nav>
+
       {update ? (
         <UpdateNoticeModal
           show={showModal}

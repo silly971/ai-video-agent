@@ -1,7 +1,6 @@
 'use client'
 import { logError as _ulogError } from '@/lib/logging/core'
 import { useState, useEffect, useCallback } from 'react'
-import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import Navbar from '@/components/Navbar'
 import ConfirmDialog from '@/components/ConfirmDialog'
@@ -66,7 +65,6 @@ function toProjectValidationMessage(
 }
 
 export default function WorkspacePage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
@@ -97,15 +95,6 @@ export default function WorkspacePage() {
   const t = useTranslations('workspace')
   const tc = useTranslations('common')
 
-  // 检查用户是否已登录
-  useEffect(() => {
-    if (status === 'loading') return
-    if (!session) {
-      router.push({ pathname: '/auth/signin' })
-      return
-    }
-  }, [session, status, router])
-
   // 获取项目列表
   const fetchProjects = useCallback(async (page: number = 1, search: string = '') => {
     try {
@@ -133,10 +122,8 @@ export default function WorkspacePage() {
 
   // 初始加载和搜索/分页变化时重新获取
   useEffect(() => {
-    if (session) {
-      fetchProjects(pagination.page, searchQuery)
-    }
-  }, [session, pagination.page, searchQuery, fetchProjects])
+    void fetchProjects(pagination.page, searchQuery)
+  }, [pagination.page, searchQuery, fetchProjects])
 
   // 搜索处理
   const handleSearch = () => {
@@ -317,14 +304,6 @@ export default function WorkspacePage() {
       description: project.description || ''
     })
     setShowEditModal(true)
-  }
-
-  if (status === 'loading' || !session) {
-    return (
-      <div className="glass-page min-h-screen flex items-center justify-center">
-        <div className="text-[var(--glass-text-secondary)]">{tc('loading')}</div>
-      </div>
-    )
   }
 
   return (

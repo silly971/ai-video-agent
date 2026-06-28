@@ -5,7 +5,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const net = require('node:net')
 
-const DEV_APP_URL = 'http://127.0.0.1:3000/zh/home'
+const DEV_APP_URL = 'http://127.0.0.1:3000/zh/agent'
 const DEFAULT_PACKAGED_PORT = 13000
 
 let serverProcess = null
@@ -239,7 +239,7 @@ async function ensurePackagedRuntime() {
 
   const port = await findAvailablePort(Number.parseInt(process.env.PORT || String(DEFAULT_PACKAGED_PORT), 10) || DEFAULT_PACKAGED_PORT)
   runtimeEnv = buildRuntimeEnv(port)
-  runtimeUrl = `http://127.0.0.1:${port}/zh/home`
+  runtimeUrl = `http://127.0.0.1:${port}/zh/agent`
 
   await ensureDatabase(runtimeEnv)
   startNextServer(runtimeEnv)
@@ -284,7 +284,7 @@ function createMenu(window) {
     {
       label: '本地',
       submenu: [
-        { label: '打开工作台', click: () => runtimeUrl && window.loadURL(runtimeUrl) },
+        { label: '打开 Agent 工作台', click: () => runtimeUrl && window.loadURL(runtimeUrl) },
         { label: '在浏览器中打开', click: () => runtimeUrl && shell.openExternal(runtimeUrl) },
         { label: '打开数据目录', click: () => shell.openPath(app.getPath('userData')) },
       ],
