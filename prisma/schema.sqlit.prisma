@@ -740,7 +740,7 @@ model GraphStepAttempt {
 }
 
 model GraphEvent {
-  id        BigInt   @id @default(autoincrement())
+  id        BigInt   @id
   runId     String
   projectId String
   userId    String

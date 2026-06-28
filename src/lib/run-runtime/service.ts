@@ -73,7 +73,7 @@ type GraphArtifactRow = {
 }
 
 type GraphEventRow = {
-  id: bigint
+  id: bigint | number | string
   runId: string
   projectId: string
   userId: string
@@ -108,6 +108,7 @@ type GraphStepAttemptModel = {
 
 type GraphEventModel = {
   create: (args: unknown) => Promise<GraphEventRow>
+  findFirst: (args: unknown) => Promise<{ id: bigint | number | string } | null>
   findMany: (args: unknown) => Promise<GraphEventRow[]>
 }
 
@@ -214,6 +215,21 @@ function mapEventRow(row: GraphEventRow): RunEvent {
     payload: toObject(row.payload),
     createdAt: row.createdAt.toISOString(),
   }
+}
+
+function normalizeEventId(value: bigint | number | string | null | undefined): bigint {
+  if (typeof value === 'bigint') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return BigInt(Math.trunc(value))
+  if (typeof value === 'string' && value.trim()) return BigInt(value)
+  return BigInt(0)
+}
+
+async function allocateGraphEventId(tx: GraphRuntimeTx): Promise<bigint> {
+  const latest = await tx.graphEvent.findFirst({
+    select: { id: true },
+    orderBy: { id: 'desc' },
+  })
+  return normalizeEventId(latest?.id) + BigInt(1)
 }
 
 function mapRunRow(run: GraphRunRow) {
@@ -909,8 +925,10 @@ export async function appendRunEventWithSeq(input: RunEventInput): Promise<RunEv
       },
     })
 
+    const eventId = await allocateGraphEventId(tx)
     const created = await tx.graphEvent.create({
       data: {
+        id: eventId,
         runId: input.runId,
         projectId: input.projectId,
         userId: input.userId,
