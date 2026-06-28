@@ -1,33 +1,37 @@
-# Changelog
+# Changelog / 更新日志
 
-## 0.1.4 - 2026-06-27
+All notable changes to this project will be documented in this file.
 
-- 从接口配置页移除分析、生图、视频模型的请求头 JSON 输入框。
-- 请求头改为应用内部处理，保留 Authorization 和各接口所需 Content-Type 的内置发送逻辑。
+---
 
-## 0.1.3 - 2026-06-27
+## [v0.2] - 2026-02-28
 
-- 为 New API 生图模型增加基准分辨率和图像比例配置。
-- 生图请求体现在会发送 `resolution`、`aspect_ratio` 和按配置派生的 `size`。
-- 增加生图请求体测试，验证后端确实携带分辨率和比例参数。
+### ✨ 新功能
+- 增加 OpenAI 兼容图片、视频格式支持
 
-## 0.1.2 - 2026-06-27
+### 🐛 修复
+- 修复默认模型配置后项目模型需要二次选择的问题
+- 修复部分情况 resolution 无法读取的问题
+- 修复模型链路为 LangGraph
+- 修复默认参数无选择问题
+- 修复关闭计费依然触发计费问题
+- 修复 openai-compatible 被误判为原生 OpenAI 推理问题
+- 修复 JSON 解析失败问题
 
-- 将接口配置改为 New API 分析模型、生图模型、视频模型三套独立配置。
-- 将 Seedance 调用方式合并到 New API 视频模型，不再展示独立 Seedance Provider。
-- 增加按镜头生成首帧图功能，生成结果会作为视频参考素材写回分镜。
-- 增加旧版 `newApi` / `seedance` 配置迁移逻辑和迁移测试。
+### ⚙️ 优化
+- 修改为默认计费 off
+- 增强提示词 JSON 格式限制
 
-## 0.1.1 - 2026-06-27
+---
 
-- 修复 Electron `file://` 下 Vite 资源路径导致的空白窗口。
-- 修复 Electron preload 以 ESM 输出导致 `window.agent` 未注入的问题。
-- 重新验证生产模式启动和 Windows 便携包启动。
+## [v0.2.1] - 2026-02-28
 
-## 0.1.0 - 2026-06-27
+### 🐛 修复
+- 修复 AI 生成内容语言不跟随网站语言设置的问题
+- 修复前端 API 请求未携带 Accept-Language header 导致 locale 回退到浏览器默认语言
+---
 
-- 初始化 Electron + React 桌面端。
-- 增加 New API 分镜生成和视频接口接入。
-- 增加 Seedance 视频任务提交、轮询与下载。
-- 增加项目、角色、分镜、素材、任务和日志工作台。
-- 增加本机状态保存、导入导出、接口连接测试。
+## [v0.1] - 2026-02-27
+
+### 🎉 首次发布
+- 项目初始开源版本
