@@ -77,7 +77,7 @@ export function useAiDesignCharacter() {
         },
         'Failed to design character',
       )
-      return resolveTaskResponse<{ prompt?: string }>(response)
+      return resolveTaskResponse<{ prompt?: string; voicePrompt?: string; voicePreviewText?: string }>(response)
     },
   })
 }
@@ -112,6 +112,8 @@ export function useCreateAssetHubCharacter() {
       description: string
       folderId?: string | null
       artStyle: string
+      voicePrompt?: string
+      voicePreviewText?: string
       generateFromReference?: boolean
       referenceImageUrls?: string[]
       customDescription?: string

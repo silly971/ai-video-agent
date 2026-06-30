@@ -23,6 +23,10 @@ interface CharacterCreationFormProps {
   setName: (value: string) => void
   description: string
   setDescription: (value: string) => void
+  voicePrompt: string
+  setVoicePrompt: (value: string) => void
+  voicePreviewText: string
+  setVoicePreviewText: (value: string) => void
   aiInstruction: string
   setAiInstruction: (value: string) => void
   artStyle: string
@@ -43,7 +47,6 @@ interface CharacterCreationFormProps {
   handleClearReference: (index?: number) => void
   handleExtractDescription: () => void
   handleAiDesign: () => void
-  isSubmitting: boolean
   isAiDesigning: boolean
   isExtracting: boolean
 }
@@ -64,6 +67,10 @@ export default function CharacterCreationForm({
   setName,
   description,
   setDescription,
+  voicePrompt,
+  setVoicePrompt,
+  voicePreviewText,
+  setVoicePreviewText,
   aiInstruction,
   setAiInstruction,
   artStyle,
@@ -84,7 +91,6 @@ export default function CharacterCreationForm({
   handleClearReference,
   handleExtractDescription,
   handleAiDesign,
-  isSubmitting,
   isAiDesigning,
   isExtracting,
 }: CharacterCreationFormProps) {
@@ -284,6 +290,28 @@ export default function CharacterCreationForm({
               className="glass-textarea-base w-full px-3 py-2 text-sm resize-none"
             />
           </div>
+
+          {!isSubAppearance && (
+            <div className="space-y-2">
+              <label className="glass-field-label block">
+                {t('character.voicePrompt')} <span className="text-[var(--glass-text-tertiary)]">{t('common.optional')}</span>
+              </label>
+              <textarea
+                value={voicePrompt}
+                onChange={(e) => setVoicePrompt(e.target.value)}
+                rows={3}
+                placeholder={t('character.voicePromptPlaceholder')}
+                className="glass-textarea-base w-full px-3 py-2 text-sm resize-none"
+              />
+              <input
+                type="text"
+                value={voicePreviewText}
+                onChange={(e) => setVoicePreviewText(e.target.value)}
+                placeholder={t('character.voicePreviewPlaceholder')}
+                className="glass-input-base w-full px-3 py-2 text-sm"
+              />
+            </div>
+          )}
         </>
       )}
     </div>

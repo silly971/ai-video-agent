@@ -67,9 +67,6 @@ function resolveScriptToStoryboardInvalidation(params: {
   existingStepKeys: ReadonlySet<string>
 }): string[] {
   const affected = new Set<string>([params.stepKey])
-  if (params.stepKey === 'voice_analyze') {
-    return uniqueStepKeys(affected)
-  }
 
   const parsed = parseStoryboardStepKey(params.stepKey)
   if (!parsed) {
@@ -81,17 +78,14 @@ function resolveScriptToStoryboardInvalidation(params: {
     affected.add(`${clipPrefix}phase2_cinematography`)
     affected.add(`${clipPrefix}phase2_acting`)
     affected.add(`${clipPrefix}phase3_detail`)
-    affected.add('voice_analyze')
     return uniqueStepKeys(Array.from(affected).filter((stepKey) => params.existingStepKeys.has(stepKey)))
   }
 
   if (parsed.phase === 'phase2_cinematography' || parsed.phase === 'phase2_acting') {
     affected.add(`${clipPrefix}phase3_detail`)
-    affected.add('voice_analyze')
     return uniqueStepKeys(Array.from(affected).filter((stepKey) => params.existingStepKeys.has(stepKey)))
   }
 
-  affected.add('voice_analyze')
   return uniqueStepKeys(Array.from(affected).filter((stepKey) => params.existingStepKeys.has(stepKey)))
 }
 
@@ -169,15 +163,8 @@ const SCRIPT_TO_STORYBOARD_DEFINITION: WorkflowDefinition = {
       failureMode: 'fail_run',
     },
     {
-      key: 'voice_analyze',
-      dependsOn: ['detail_panels'],
-      retryable: true,
-      artifactTypes: ['voice.lines'],
-      failureMode: 'fail_run',
-    },
-    {
       key: 'persist_storyboard_artifacts',
-      dependsOn: ['detail_panels', 'voice_analyze'],
+      dependsOn: ['detail_panels'],
       retryable: false,
       artifactTypes: [],
       failureMode: 'fail_run',

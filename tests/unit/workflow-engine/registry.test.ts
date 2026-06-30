@@ -18,7 +18,6 @@ describe('workflow registry', () => {
     expect(scriptToStoryboard?.orderedSteps.map((step) => step.key)).toEqual([
       'plan_panels',
       'detail_panels',
-      'voice_analyze',
       'persist_storyboard_artifacts',
     ])
   })
@@ -36,7 +35,7 @@ describe('workflow registry', () => {
     ])
   })
 
-  it('invalidates only the affected storyboard branch plus voice analyze', () => {
+  it('invalidates only the affected storyboard branch', () => {
     expect(resolveWorkflowRetryInvalidationStepKeys({
       workflowType: TASK_TYPE.SCRIPT_TO_STORYBOARD_RUN,
       stepKey: 'clip_clip-1_phase2_cinematography',
@@ -46,12 +45,10 @@ describe('workflow registry', () => {
         'clip_clip-1_phase2_acting',
         'clip_clip-1_phase3_detail',
         'clip_clip-2_phase3_detail',
-        'voice_analyze',
       ],
     }).sort()).toEqual([
       'clip_clip-1_phase2_cinematography',
       'clip_clip-1_phase3_detail',
-      'voice_analyze',
     ])
   })
 })

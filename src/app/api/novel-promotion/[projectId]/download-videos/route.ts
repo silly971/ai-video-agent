@@ -124,8 +124,8 @@ export const POST = apiHandler(async (
     for (const panel of panels) {
       // 构建 panelKey 用于查找偏好
       const panelKey = `${storyboard.id}-${panel.panelIndex || 0}`
-      // 获取该 panel 的偏好，默认 true（口型同步优先）
-      const preferLipSync = panelPreferences?.[panelKey] ?? true
+      // 获取该 panel 的偏好，默认 false（原始视频优先）
+      const preferLipSync = panelPreferences?.[panelKey] ?? false
 
       // 根据用户偏好选择视频类型
       let videoUrl: string | null = null

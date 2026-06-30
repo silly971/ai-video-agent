@@ -45,7 +45,7 @@ export function useVideoDownloadAll({
       const panelPreferences: Record<string, boolean> = {}
       allPanels.forEach((panel) => {
         const panelKey = `${panel.storyboardId}-${panel.panelIndex}`
-        panelPreferences[panelKey] = panelVideoPreference.get(panelKey) ?? true
+        panelPreferences[panelKey] = panelVideoPreference.get(panelKey) ?? false
       })
 
       _ulogInfo('[下载视频] 获取视频URL列表...')

@@ -126,7 +126,7 @@ export const POST = apiHandler(async (
         for (const panel of panels) {
             // 构建 panelKey 用于查找偏好
             const panelKey = `${storyboard.id}-${panel.panelIndex || 0}`
-            const preferLipSync = panelPreferences?.[panelKey] ?? true
+            const preferLipSync = panelPreferences?.[panelKey] ?? false
 
             // 根据用户偏好选择视频类型
             let videoKey: string | null = null

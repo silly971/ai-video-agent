@@ -17,7 +17,6 @@ interface VideoRenderPanelProps {
   episodeId: string
   runningVoiceLineIds: Set<string>
   panelVoiceLines: Map<string, MatchedVoiceLine[]>
-  panelVideoPreference: Map<string, boolean>
   savingPrompts: Set<string>
   flModel: string
   flModelOptions: VideoModelOption[]
@@ -40,7 +39,6 @@ interface VideoRenderPanelProps {
     panelId?: string,
   ) => Promise<void>
   onUpdatePanelVideoModel: (storyboardId: string, panelIndex: number, model: string) => Promise<void>
-  onLipSync: (storyboardId: string, panelIndex: number, voiceLineId: string, panelId?: string) => Promise<void>
   onToggleLink: (panelKey: string, storyboardId: string, panelIndex: number) => Promise<void>
   onFlModelChange: (model: string) => void
   onFlCapabilityChange: (field: string, rawValue: string) => void
@@ -56,7 +54,6 @@ interface VideoRenderPanelProps {
     firstPanelId?: string,
   ) => Promise<void>
   onPreviewImage: (imageUrl: string | null) => void
-  onToggleLipSyncVideo: (key: string, value: boolean) => void
   getNextPanel: (currentIndex: number) => VideoPanel | null
   isLinkedAsLastFrame: (currentIndex: number) => boolean
   getDefaultFlPrompt: (firstPrompt?: string, lastPrompt?: string) => string
@@ -84,7 +81,6 @@ export default function VideoRenderPanel({
   episodeId,
   runningVoiceLineIds,
   panelVoiceLines,
-  panelVideoPreference,
   savingPrompts,
   flModel,
   flModelOptions,
@@ -94,7 +90,6 @@ export default function VideoRenderPanel({
   flCustomPrompts,
   onGenerateVideo,
   onUpdatePanelVideoModel,
-  onLipSync,
   onToggleLink,
   onFlModelChange,
   onFlCapabilityChange,
@@ -102,7 +97,6 @@ export default function VideoRenderPanel({
   onResetFlPrompt,
   onGenerateFirstLastFrame,
   onPreviewImage,
-  onToggleLipSyncVideo,
   getNextPanel,
   isLinkedAsLastFrame,
   getDefaultFlPrompt,
@@ -157,9 +151,8 @@ export default function VideoRenderPanel({
                 episodeId={episodeId}
                 runningVoiceLineIds={runningVoiceLineIds}
                 matchedVoiceLines={panelVoiceLines.get(panelKey) || []}
-                onLipSync={onLipSync}
-                showLipSyncVideo={panelVideoPreference.get(panelKey) ?? true}
-                onToggleLipSyncVideo={onToggleLipSyncVideo}
+                showLipSyncVideo={false}
+                onToggleLipSyncVideo={() => {}}
                 isLinked={isLinked}
                 isLastFrame={isLastFrame}
                 nextPanel={nextPanel}

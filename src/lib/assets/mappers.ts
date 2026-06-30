@@ -45,7 +45,10 @@ type GlobalCharacterRecord = {
   id: string
   name: string
   folderId: string | null
+  voiceType?: 'custom' | 'qwen-designed' | 'uploaded' | null
+  voiceId?: string | null
   customVoiceUrl: string | null
+  globalVoiceId?: string | null
   media?: MediaRef | null
   appearances: Array<{
     id: string
@@ -236,6 +239,11 @@ export function mapProjectCharacterToAsset(character: ProjectCharacterRecord): C
 
 export function mapGlobalCharacterToAsset(character: GlobalCharacterRecord): CharacterAssetSummary {
   const registration = getAssetKindRegistration('character')
+  const normalizedVoiceType = character.voiceType === 'custom'
+    || character.voiceType === 'qwen-designed'
+    || character.voiceType === 'uploaded'
+    ? character.voiceType
+    : null
   const variants = character.appearances.map((appearance) => {
     const imageMedias = appearance.imageMedias ?? []
     const previousImageMedias = appearance.previousImageMedias ?? []
@@ -297,8 +305,8 @@ export function mapGlobalCharacterToAsset(character: GlobalCharacterRecord): Cha
     profileTaskRefs: [],
     profileTaskState: createIdleTaskState(),
     voice: {
-      voiceType: null,
-      voiceId: null,
+      voiceType: normalizedVoiceType,
+      voiceId: character.voiceId ?? character.globalVoiceId ?? null,
       customVoiceUrl: character.customVoiceUrl,
       media: character.media ?? null,
     },

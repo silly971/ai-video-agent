@@ -112,25 +112,6 @@ export default function VideoPanelCardHeader({ runtime }: VideoPanelCardHeaderPr
         </div>
       )}
 
-      {/* 口型同步切换 */}
-      {panel.lipSyncVideoUrl && hasVisibleBaseVideo ? (
-        <div
-          className="absolute top-2 right-2 flex items-center bg-[var(--glass-overlay)] rounded-full p-0.5 cursor-pointer"
-          onClick={(event) => {
-            event.stopPropagation()
-            media.onToggleLipSyncVideo(panelKey, !media.showLipSyncVideo)
-            player.setIsPlaying(false)
-          }}
-        >
-          <div className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-all ${!media.showLipSyncVideo ? 'bg-[var(--glass-tone-success-fg)] text-white' : 'text-[var(--glass-text-tertiary)] hover:text-white'}`}>
-            {t('panelCard.original')}
-          </div>
-          <div className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-all ${media.showLipSyncVideo ? 'bg-[var(--glass-accent-from)] text-white' : 'text-[var(--glass-text-tertiary)] hover:text-white'}`}>
-            {t('panelCard.synced')}
-          </div>
-        </div>
-      ) : null}
-
       {/* 重新生成按钮 */}
       {!layout.isLinked && !layout.isLastFrame && (hasVisibleBaseVideo || taskStatus.isVideoTaskRunning) && (
         <button

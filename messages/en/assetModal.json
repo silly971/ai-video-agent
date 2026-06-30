@@ -21,6 +21,12 @@
         "modifyDescription": "Modify Description",
         "descPlaceholder": "Enter character appearance description...",
         "modifyDescriptionPlaceholder": "Describe how to modify the primary appearance, e.g. formal outfit, post-battle injuries, add a cloak...",
+        "voicePrompt": "Character Voice",
+        "voicePromptPlaceholder": "Describe voice texture, pace, age impression, and emotional range, e.g. clear young female voice, natural pace, firm tone, subtle emotion",
+        "voicePreviewPlaceholder": "Voice preview line. Leave blank to use the default text",
+        "defaultVoiceName": "Character",
+        "defaultVoicePreviewText": "Hello, I am {name}. Please listen to my voice.",
+        "voiceNameSuffix": " Voice",
         "selectMainCharacter": "Select Main Character",
         "selectCharacterPlaceholder": "Please select a character...",
         "appearancesCount": "{count} appearances",
@@ -93,6 +99,7 @@
         "extractDescriptionFailed": "Failed to extract description",
         "createFailed": "Creation failed",
         "aiDesignFailed": "AI design failed",
+        "voiceDesignFailed": "Character was created, but automatic voice generation failed",
         "addSubAppearanceFailed": "Failed to add sub-appearance",
         "insufficientBalance": "Insufficient balance"
     }

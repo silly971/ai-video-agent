@@ -102,8 +102,8 @@ export function useVideoPanelActions({
     onLipSync,
   })
 
-  const showLipSyncSection = voiceManager.hasMatchedVoiceLines
-  const canLipSync = hasVisibleBaseVideo && voiceManager.hasMatchedAudio && !taskStatus.isLipSyncTaskRunning
+  const showLipSyncSection = false
+  const canLipSync = false
 
   return {
     t,

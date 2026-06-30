@@ -8,7 +8,6 @@ import {
 import { withInternalLLMStreamCallbacks } from '@/lib/llm-observe/internal-stream-context'
 import { logAIAnalysis } from '@/lib/logging/semantic'
 import { onProjectNameAvailable } from '@/lib/logging/file-writer'
-import { buildCharactersIntroduction } from '@/lib/constants'
 import { TaskTerminatedError } from '@/lib/task/errors'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import {
@@ -21,14 +20,11 @@ import {
 import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './llm-stream'
 import type { TaskJobData } from '@/lib/task/types'
 import {
-  buildStoryboardJsonFromClipPanels,
   parseEffort,
   parseTemperature,
-  parseVoiceLinesJson,
   persistStoryboardOutputs,
-  type JsonRecord,
 } from './script-to-storyboard-helpers'
-import { buildPrompt, getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createArtifact } from '@/lib/run-runtime/service'
 import { assertWorkflowRunActive, withWorkflowRunLease } from '@/lib/run-runtime/workflow-lease'
@@ -38,7 +34,6 @@ import {
 } from './script-to-storyboard-atomic-retry'
 
 type AnyObj = Record<string, unknown>
-const MAX_VOICE_ANALYZE_ATTEMPTS = 2
 
 function buildWorkflowWorkerId(job: Job<TaskJobData>, label: string) {
   return `${label}:${job.queueName}:${job.data.taskId}`
@@ -114,7 +109,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     throw new Error('No clips found')
   }
   const retryTarget = parseStoryboardRetryTarget(retryStepKey)
-  if (retryStepKey && retryStepKey !== 'voice_analyze' && !retryTarget) {
+  if (retryStepKey && !retryTarget) {
     throw new Error(`unsupported retry step for script_to_storyboard: ${retryStepKey}`)
   }
   const retryClipId = retryTarget?.clipId || null
@@ -124,8 +119,6 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
   if (retryClipId && selectedClips.length === 0) {
     throw new Error(`Retry clip not found: ${retryClipId}`)
   }
-  const skipVoiceAnalyze = !!retryStepKey && retryStepKey !== 'voice_analyze'
-
   const model = await resolveAnalysisModel({
     userId: job.data.userId,
     inputModel,
@@ -428,113 +421,10 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
       })
       await assertRunActive('script_to_storyboard_persist')
 
-      if (skipVoiceAnalyze) {
-        const persisted = await persistStoryboardOutputs({
-          episodeId,
-          clipPanels: orchestratorResult.clipPanels,
-          voiceLineRows: null,
-        })
-        await reportTaskProgress(job, 96, {
-          stage: 'script_to_storyboard_persist_done',
-          stageLabel: 'progress.stage.scriptToStoryboardPersistDone',
-          displayMode: 'detail',
-          message: 'step retry complete',
-          stepId: retryStepKey || undefined,
-          stepAttempt:
-            typeof payload.retryStepAttempt === 'number' && Number.isFinite(payload.retryStepAttempt)
-              ? Math.max(1, Math.floor(payload.retryStepAttempt))
-              : undefined,
-        })
-        return {
-          episodeId,
-          storyboardCount: persisted.persistedStoryboards.length,
-          panelCount: orchestratorResult.summary.totalPanelCount,
-          voiceLineCount: 0,
-          retryStepKey,
-        }
-      }
-
-      if (!episode.novelText || !episode.novelText.trim()) {
-        throw new Error('No novel text to analyze')
-      }
-
-      const voicePrompt = buildPrompt({
-        promptId: PROMPT_IDS.NP_VOICE_ANALYSIS,
-        locale: job.data.locale,
-        variables: {
-          input: episode.novelText,
-          characters_lib_name: (novelData.characters || []).length > 0
-            ? (novelData.characters || []).map((item) => item.name).join('、')
-            : '无',
-          characters_introduction: buildCharactersIntroduction(novelData.characters || []),
-          storyboard_json: buildStoryboardJsonFromClipPanels(orchestratorResult.clipPanels),
-        },
-      })
-
-      let voiceLineRows: JsonRecord[] | null = null
-      let voiceLastError: Error | null = null
-      const voiceStepMeta: ScriptToStoryboardStepMeta = {
-        stepId: 'voice_analyze',
-        stepTitle: 'progress.streamStep.voiceAnalyze',
-        stepIndex: orchestratorResult.summary.totalStepCount,
-        stepTotal: orchestratorResult.summary.totalStepCount,
-        retryable: true,
-      }
-      try {
-        for (let voiceAttempt = 1; voiceAttempt <= MAX_VOICE_ANALYZE_ATTEMPTS; voiceAttempt++) {
-          const meta: ScriptToStoryboardStepMeta = {
-            ...voiceStepMeta,
-            stepAttempt: voiceAttempt,
-          }
-          try {
-            const voiceOutput = await withInternalLLMStreamCallbacks(
-              callbacks,
-              async () => await runStep(meta, voicePrompt, 'voice_analyze', 2600),
-            )
-            voiceLineRows = parseVoiceLinesJson(voiceOutput.text)
-            break
-          } catch (error) {
-            if (error instanceof TaskTerminatedError) {
-              throw error
-            }
-            voiceLastError = error instanceof Error ? error : new Error(String(error))
-            if (voiceAttempt < MAX_VOICE_ANALYZE_ATTEMPTS) {
-              await reportTaskProgress(job, 84, {
-                stage: 'script_to_storyboard_step',
-                stageLabel: 'progress.stage.scriptToStoryboardStep',
-                displayMode: 'detail',
-                message: `台词分析失败，准备重试 (${voiceAttempt + 1}/${MAX_VOICE_ANALYZE_ATTEMPTS})`,
-                stepId: voiceStepMeta.stepId,
-                stepAttempt: voiceAttempt + 1,
-                stepTitle: voiceStepMeta.stepTitle,
-                stepIndex: voiceStepMeta.stepIndex,
-                stepTotal: voiceStepMeta.stepTotal,
-              })
-            }
-          }
-        }
-      } finally {
-        await callbacks.flush()
-      }
-      if (!voiceLineRows) {
-        throw voiceLastError!
-      }
-
-      await createArtifact({
-        runId,
-        stepKey: 'voice_analyze',
-        artifactType: 'voice.lines',
-        refId: episodeId,
-        payload: {
-          lines: voiceLineRows,
-        },
-      })
-
-      await assertRunActive('script_to_storyboard_voice_persist')
       const persisted = await persistStoryboardOutputs({
         episodeId,
         clipPanels: orchestratorResult.clipPanels,
-        voiceLineRows,
+        voiceLineRows: null,
       })
 
       await reportTaskProgress(job, 96, {
@@ -547,7 +437,8 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
         episodeId,
         storyboardCount: persisted.persistedStoryboards.length,
         panelCount: orchestratorResult.summary.totalPanelCount,
-        voiceLineCount: persisted.voiceLineCount,
+        voiceLineCount: 0,
+        retryStepKey: retryStepKey || undefined,
       }
     },
   })

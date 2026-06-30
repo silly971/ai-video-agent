@@ -206,21 +206,6 @@ function buildJob(payload: Record<string, unknown>, episodeId: string | null = '
   } as unknown as Job<TaskJobData>
 }
 
-function baseVoiceRows(): VoiceLineInput[] {
-  return [
-    {
-      lineIndex: 1,
-      speaker: 'Narrator',
-      content: 'Hello world',
-      emotionStrength: 0.8,
-      matchedPanel: {
-        storyboardId: 'storyboard-1',
-        panelIndex: 1,
-      },
-    },
-  ]
-}
-
 describe('worker script-to-storyboard behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -291,8 +276,6 @@ describe('worker script-to-storyboard behavior', () => {
         voiceLineCount: rows.length,
       }
     })
-
-    parseVoiceLinesJsonMock.mockReturnValue(baseVoiceRows())
   })
 
   it('缺少 episodeId -> 显式失败', async () => {
@@ -300,7 +283,7 @@ describe('worker script-to-storyboard behavior', () => {
     await expect(handleScriptToStoryboardTask(job)).rejects.toThrow('episodeId is required')
   })
 
-  it('成功路径: 写入 voice line 时包含 matchedPanel 映射后的 panelId', async () => {
+  it('成功路径: 只持久化分镜，不再单独生成 voice lines', async () => {
     const job = buildJob({ episodeId: 'episode-1' })
 
     const result = await handleScriptToStoryboardTask(job)
@@ -309,72 +292,40 @@ describe('worker script-to-storyboard behavior', () => {
       episodeId: 'episode-1',
       storyboardCount: 1,
       panelCount: 1,
-      voiceLineCount: 1,
+      voiceLineCount: 0,
+      retryStepKey: undefined,
     })
 
-    expect(txState.createdRows).toHaveLength(1)
-    expect(txState.createdRows[0]).toEqual(expect.objectContaining({
+    expect(persistStoryboardOutputsMock).toHaveBeenCalledWith({
       episodeId: 'episode-1',
-      lineIndex: 1,
-      speaker: 'Narrator',
-      content: 'Hello world',
-      emotionStrength: 0.8,
-      matchedPanelId: 'panel-1',
-      matchedStoryboardId: 'storyboard-1',
-      matchedPanelIndex: 1,
-    }))
+      clipPanels: [
+        {
+          clipId: 'clip-1',
+          clipIndex: 0,
+          finalPanels: [
+            {
+              panel_number: 1,
+              shot_type: 'close-up',
+              camera_move: 'static',
+              description: 'panel desc',
+              video_prompt: 'panel prompt',
+              location: 'room',
+              characters: ['Narrator'],
+            },
+          ],
+        },
+      ],
+      voiceLineRows: null,
+    })
+    expect(parseVoiceLinesJsonMock).not.toHaveBeenCalled()
+    expect(chatCompletionMock).not.toHaveBeenCalled()
+    expect(txState.createdRows).toEqual([])
     expect(txState.deletedWhereClauses[0]).toEqual({
       episodeId: 'episode-1',
-      lineIndex: {
-        notIn: [1],
-      },
     })
   })
 
-  it('voice 解析失败后会重试一次再成功', async () => {
-    parseVoiceLinesJsonMock
-      .mockImplementationOnce(() => {
-        throw new Error('invalid voice json')
-      })
-      .mockImplementationOnce(() => baseVoiceRows())
-
-    const job = buildJob({ episodeId: 'episode-1' })
-    const result = await handleScriptToStoryboardTask(job)
-
-    expect(result).toEqual(expect.objectContaining({
-      episodeId: 'episode-1',
-      voiceLineCount: 1,
-    }))
-    expect(chatCompletionMock).toHaveBeenCalledTimes(2)
-    expect(parseVoiceLinesJsonMock).toHaveBeenCalledTimes(2)
-    expect(withInternalLLMStreamCallbacksMock).toHaveBeenCalledTimes(3)
-    const firstChatCall = chatCompletionMock.mock.calls[0] as unknown as [unknown, unknown, unknown, Record<string, unknown>] | undefined
-    expect(firstChatCall?.[3]).toEqual(expect.objectContaining({
-      action: 'voice_analyze',
-      streamStepId: 'voice_analyze',
-      streamStepAttempt: 1,
-    }))
-    const secondChatCall = chatCompletionMock.mock.calls[1] as unknown as [unknown, unknown, unknown, Record<string, unknown>] | undefined
-    expect(secondChatCall?.[3]).toEqual(expect.objectContaining({
-      action: 'voice_analyze',
-      streamStepId: 'voice_analyze',
-      streamStepAttempt: 2,
-    }))
-    expect(reportTaskProgressMock).toHaveBeenCalledWith(
-      job,
-      84,
-      expect.objectContaining({
-        stage: 'script_to_storyboard_step',
-        stepId: 'voice_analyze',
-        stepAttempt: 2,
-        message: '台词分析失败，准备重试 (2/2)',
-      }),
-    )
-  })
-
-  it('空台词数组 -> 成功完成并清空旧台词', async () => {
-    parseVoiceLinesJsonMock.mockReturnValue([])
-
+  it('分镜完成后清空旧 voice lines，台词由 video_prompt 承接', async () => {
     const job = buildJob({ episodeId: 'episode-1' })
     const result = await handleScriptToStoryboardTask(job)
 
@@ -383,11 +334,13 @@ describe('worker script-to-storyboard behavior', () => {
       storyboardCount: 1,
       panelCount: 1,
       voiceLineCount: 0,
+      retryStepKey: undefined,
     })
     expect(txState.createdRows).toEqual([])
     expect(txState.deletedWhereClauses[0]).toEqual({
       episodeId: 'episode-1',
     })
+    expect(parseVoiceLinesJsonMock).not.toHaveBeenCalled()
   })
 
   it('phase 级重试: 仅执行原子 phase，不走整图重跑', async () => {

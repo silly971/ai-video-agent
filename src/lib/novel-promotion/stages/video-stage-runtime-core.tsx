@@ -1,6 +1,5 @@
 'use client'
 
-import { logError as _ulogError } from '@/lib/logging/core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
@@ -16,7 +15,6 @@ import {
   useMatchedVoiceLines,
   useUpdateProjectPanelLink,
 } from '@/lib/query/hooks'
-import { useLipSync } from '@/lib/query/hooks/useStoryboards'
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal'
 import { ModelCapabilityDropdown } from '@/components/ui/config-modals/ModelCapabilityDropdown'
 import VideoTimelinePanel from '@/app/[locale]/workspace/[projectId]/modes/novel-promotion/components/video-stage/VideoTimelinePanel'
@@ -104,7 +102,6 @@ export function useVideoStageRuntime({
     previewImage,
     setPreviewImage,
     toggleVoiceLinesExpanded,
-    toggleLipSyncVideo,
     closePreviewImage,
   } = useVideoStageUiState()
 
@@ -114,7 +111,6 @@ export function useVideoStageRuntime({
     locateVoiceLinePanel,
   } = useVideoPanelViewport()
 
-  const lipSyncMutation = useLipSync(projectId, episodeId)
   const listEpisodeVideoUrlsMutation = useListProjectEpisodeVideoUrls(projectId)
   const updatePanelLinkMutation = useUpdateProjectPanelLink(projectId)
   const downloadRemoteBlobMutation = useDownloadRemoteBlob()
@@ -316,25 +312,6 @@ export function useVideoStageRuntime({
       }),
     }))
   }, [batchCapabilityDefinitions, batchDefinitionFieldMap, batchPricingTiers])
-
-  const handleLipSync = useCallback(async (
-    storyboardId: string,
-    panelIndex: number,
-    voiceLineId: string,
-    panelId?: string,
-  ) => {
-    try {
-      await lipSyncMutation.mutateAsync({
-        storyboardId,
-        panelIndex,
-        voiceLineId,
-        panelId,
-      })
-    } catch (error: unknown) {
-      _ulogError('Lip sync error:', error)
-      throw error
-    }
-  }, [lipSyncMutation])
 
   const panelBySubmissionKey = useMemo(() => {
     const next = new Map<string, (typeof allPanels)[number]>()
@@ -565,7 +542,6 @@ export function useVideoStageRuntime({
         episodeId={episodeId}
         runningVoiceLineIds={runningVoiceLineIds}
         panelVoiceLines={panelVoiceLines}
-        panelVideoPreference={panelVideoPreference}
         savingPrompts={savingPrompts}
         flModel={flModel}
         flModelOptions={flModelOptions}
@@ -575,7 +551,6 @@ export function useVideoStageRuntime({
         flCustomPrompts={flCustomPrompts}
         onGenerateVideo={handleGenerateVideoWithImmediateLock}
         onUpdatePanelVideoModel={onUpdatePanelVideoModel}
-        onLipSync={handleLipSync}
         onToggleLink={handleToggleLink}
         onFlModelChange={setFlModel}
         onFlCapabilityChange={setFlCapabilityValue}
@@ -583,7 +558,6 @@ export function useVideoStageRuntime({
         onResetFlPrompt={resetFlCustomPrompt}
         onGenerateFirstLastFrame={handleGenerateFirstLastFrame}
         onPreviewImage={setPreviewImage}
-        onToggleLipSyncVideo={toggleLipSyncVideo}
         getNextPanel={getNextPanel}
         isLinkedAsLastFrame={isLinkedAsLastFrame}
         getDefaultFlPrompt={getDefaultFlPrompt}

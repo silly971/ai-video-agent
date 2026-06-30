@@ -30,6 +30,41 @@ export function useUpdateCharacterName() {
   })
 }
 
+export function useUpdateAssetHubCharacterVoiceSettings() {
+  const queryClient = useQueryClient()
+  const invalidateCharacters = () => invalidateGlobalCharacters(queryClient)
+
+  return useMutation({
+    mutationFn: async ({
+      characterId,
+      voiceType,
+      voiceId,
+      customVoiceUrl,
+      globalVoiceId,
+    }: {
+      characterId: string
+      voiceType: 'qwen-designed' | 'uploaded' | 'custom' | null
+      voiceId?: string
+      customVoiceUrl?: string | null
+      globalVoiceId?: string | null
+    }) => {
+      return await requestJsonWithError(`/api/assets/${characterId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scope: 'global',
+          kind: 'character',
+          voiceType,
+          voiceId,
+          customVoiceUrl,
+          globalVoiceId,
+        }),
+      }, '更新音色失败')
+    },
+    onSuccess: invalidateCharacters,
+  })
+}
+
 export function useUpdateLocationName() {
   const queryClient = useQueryClient()
   const invalidateLocations = () => invalidateGlobalLocations(queryClient)

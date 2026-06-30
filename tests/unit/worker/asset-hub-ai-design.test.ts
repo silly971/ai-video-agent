@@ -49,6 +49,8 @@ describe('worker asset-hub-ai-design behavior', () => {
     assetUtilsMock.aiDesign.mockResolvedValue({
       success: true,
       prompt: 'generated prompt',
+      voicePrompt: 'clear young voice with natural pace',
+      voicePreviewText: 'hello from this character',
     })
   })
 
@@ -80,6 +82,8 @@ describe('worker asset-hub-ai-design behavior', () => {
     }))
     expect(result).toEqual({
       prompt: 'generated prompt',
+      voicePrompt: 'clear young voice with natural pace',
+      voicePreviewText: 'hello from this character',
       availableSlots: [],
     })
   })

@@ -47,6 +47,7 @@ export {
     useDeleteLocation,
     useDeleteVoice,
     useUpdateCharacterName,
+    useUpdateAssetHubCharacterVoiceSettings,
     useUpdateLocationName,
     useUpdateCharacterAppearanceDescription,
     useUpdateLocationSummary,

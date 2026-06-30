@@ -82,7 +82,7 @@ export function useAiCreateProjectCharacter(projectId: string) {
                 },
                 'Failed to design character',
             )
-            return await resolveTaskResponse<{ prompt?: string }>(response)
+            return await resolveTaskResponse<{ prompt?: string; voicePrompt?: string; voicePreviewText?: string }>(response)
         },
     })
 }
@@ -144,6 +144,8 @@ export function useCreateProjectCharacter(projectId: string) {
         mutationFn: async (payload: {
             name: string
             description: string
+            voicePrompt?: string
+            voicePreviewText?: string
             generateFromReference?: boolean
             referenceImageUrls?: string[]
             customDescription?: string

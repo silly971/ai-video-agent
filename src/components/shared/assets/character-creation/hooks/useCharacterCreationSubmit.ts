@@ -11,8 +11,13 @@ import {
   useGenerateCharacterImage,
   useGenerateProjectCharacterImage,
   useCreateProjectCharacterAppearance,
+  useDesignAssetHubVoice,
+  useDesignProjectVoice,
   useExtractAssetHubReferenceCharacterDescription,
   useExtractProjectReferenceCharacterDescription,
+  useSaveDesignedAssetHubVoice,
+  useSaveProjectDesignedVoice,
+  useUpdateAssetHubCharacterVoiceSettings,
   useUploadAssetHubTempMedia,
   useUploadProjectTempMedia,
 } from '@/lib/query/hooks'
@@ -26,6 +31,8 @@ interface UseCharacterCreationSubmitParams {
   projectId?: string
   name: string
   description: string
+  voicePrompt: string
+  voicePreviewText: string
   aiInstruction: string
   artStyle: string
   referenceImagesBase64: string[]
@@ -34,6 +41,8 @@ interface UseCharacterCreationSubmitParams {
   selectedCharacterId: string
   changeReason: string
   setDescription: (value: string) => void
+  setVoicePrompt: (value: string) => void
+  setVoicePreviewText: (value: string) => void
   setAiInstruction: (value: string) => void
   onSuccess: () => void
   onClose: () => void
@@ -50,6 +59,8 @@ export function useCharacterCreationSubmit({
   projectId,
   name,
   description,
+  voicePrompt,
+  voicePreviewText,
   aiInstruction,
   artStyle,
   referenceImagesBase64,
@@ -58,6 +69,8 @@ export function useCharacterCreationSubmit({
   selectedCharacterId,
   changeReason,
   setDescription,
+  setVoicePrompt,
+  setVoicePreviewText,
   setAiInstruction,
   onSuccess,
   onClose,
@@ -78,6 +91,11 @@ export function useCharacterCreationSubmit({
   const generateAssetHubCharacterImage = useGenerateCharacterImage()
   const generateProjectCharacterImage = useGenerateProjectCharacterImage(projectId ?? '')
   const createProjectAppearance = useCreateProjectCharacterAppearance(projectId ?? '')
+  const designAssetHubVoice = useDesignAssetHubVoice()
+  const saveDesignedAssetHubVoice = useSaveDesignedAssetHubVoice()
+  const updateAssetHubCharacterVoiceSettings = useUpdateAssetHubCharacterVoiceSettings()
+  const designProjectVoice = useDesignProjectVoice(projectId ?? '')
+  const saveProjectDesignedVoice = useSaveProjectDesignedVoice(projectId ?? '')
   const {
     count: characterGenerationCount,
     setCount: setCharacterGenerationCount,
@@ -96,6 +114,84 @@ export function useCharacterCreationSubmit({
       }>
     }
   }
+
+  type SavedAssetHubVoiceResponse = {
+    voice?: {
+      id?: string
+      voiceId?: string | null
+      customVoiceUrl?: string | null
+    }
+  }
+
+  const buildVoiceDesignPayload = useCallback(() => {
+    const trimmedVoicePrompt = voicePrompt.trim()
+    if (!trimmedVoicePrompt) return null
+
+    const trimmedName = name.trim() || t('character.defaultVoiceName')
+    const trimmedPreviewText = voicePreviewText.trim()
+    return {
+      voicePrompt: trimmedVoicePrompt,
+      previewText: trimmedPreviewText || t('character.defaultVoicePreviewText', { name: trimmedName }),
+      preferredName: trimmedName,
+      language: 'zh' as const,
+    }
+  }, [name, t, voicePreviewText, voicePrompt])
+
+  const tryAutoDesignCharacterVoice = useCallback(async (characterId: string) => {
+    const payload = buildVoiceDesignPayload()
+    if (!payload) return
+
+    try {
+      if (mode === 'asset-hub') {
+        const designedVoice = await designAssetHubVoice.mutateAsync(payload)
+        if (!designedVoice.voiceId || !designedVoice.audioBase64) {
+          throw new Error(t('errors.voiceDesignFailed'))
+        }
+        const savedVoice = await saveDesignedAssetHubVoice.mutateAsync({
+          voiceId: designedVoice.voiceId,
+          voiceBase64: designedVoice.audioBase64,
+          voiceName: `${payload.preferredName}${t('character.voiceNameSuffix')}`,
+          folderId: folderId ?? null,
+          voicePrompt: payload.voicePrompt,
+        }) as SavedAssetHubVoiceResponse
+        const globalVoice = savedVoice.voice
+        await updateAssetHubCharacterVoiceSettings.mutateAsync({
+          characterId,
+          voiceType: 'qwen-designed',
+          voiceId: designedVoice.voiceId,
+          customVoiceUrl: globalVoice?.customVoiceUrl ?? null,
+          globalVoiceId: globalVoice?.id ?? null,
+        })
+        return
+      }
+
+      if (!projectId) return
+      const designedVoice = await designProjectVoice.mutateAsync(payload)
+      if (!designedVoice.voiceId || !designedVoice.audioBase64) {
+        throw new Error(t('errors.voiceDesignFailed'))
+      }
+      await saveProjectDesignedVoice.mutateAsync({
+        characterId,
+        voiceId: designedVoice.voiceId,
+        audioBase64: designedVoice.audioBase64,
+      })
+    } catch (error: unknown) {
+      if (shouldShowError(error)) {
+        alert(getErrorMessage(error, t('errors.voiceDesignFailed')))
+      }
+    }
+  }, [
+    buildVoiceDesignPayload,
+    designAssetHubVoice,
+    designProjectVoice,
+    folderId,
+    mode,
+    projectId,
+    saveDesignedAssetHubVoice,
+    saveProjectDesignedVoice,
+    t,
+    updateAssetHubCharacterVoiceSettings,
+  ])
 
   const uploadReferenceImages = useCallback(async () => {
     const uploadMutation = mode === 'asset-hub' ? uploadAssetHubTemp : uploadProjectTemp
@@ -153,25 +249,35 @@ export function useCharacterCreationSubmit({
       }
 
       if (mode === 'asset-hub') {
-        await createAssetHubCharacter.mutateAsync({
+        const result = await createAssetHubCharacter.mutateAsync({
           name: name.trim(),
           description: finalDescription || t('character.defaultDescription', { name: name.trim() }),
           folderId: folderId ?? null,
           artStyle,
+          voicePrompt: voicePrompt.trim() || undefined,
+          voicePreviewText: voicePreviewText.trim() || undefined,
           generateFromReference: true,
           referenceImageUrls,
           customDescription: referenceSubMode === 'extract' ? finalDescription : undefined,
           count: referenceCharacterGenerationCount,
-        })
+        }) as CreatedCharacterResponse
+        if (result.character?.id) {
+          await tryAutoDesignCharacterVoice(result.character.id)
+        }
       } else {
-        await createProjectCharacter.mutateAsync({
+        const result = await createProjectCharacter.mutateAsync({
           name: name.trim(),
           description: finalDescription || t('character.defaultDescription', { name: name.trim() }),
+          voicePrompt: voicePrompt.trim() || undefined,
+          voicePreviewText: voicePreviewText.trim() || undefined,
           generateFromReference: true,
           referenceImageUrls,
           customDescription: referenceSubMode === 'extract' ? finalDescription : undefined,
           count: referenceCharacterGenerationCount,
-        })
+        }) as CreatedCharacterResponse
+        if (result.character?.id) {
+          await tryAutoDesignCharacterVoice(result.character.id)
+        }
       }
 
       onSuccess()
@@ -196,9 +302,13 @@ export function useCharacterCreationSubmit({
     onClose,
     onSuccess,
     referenceImagesBase64.length,
+    referenceCharacterGenerationCount,
     referenceSubMode,
     t,
+    tryAutoDesignCharacterVoice,
     uploadReferenceImages,
+    voicePreviewText,
+    voicePrompt,
   ])
 
   const handleAiDesign = useCallback(async () => {
@@ -214,6 +324,12 @@ export function useCharacterCreationSubmit({
         setDescription(result.prompt)
         setAiInstruction('')
       }
+      if (result?.voicePrompt) {
+        setVoicePrompt(result.voicePrompt)
+      }
+      if (result?.voicePreviewText) {
+        setVoicePreviewText(result.voicePreviewText)
+      }
     } catch (error: unknown) {
       if (shouldShowError(error)) {
         alert(getErrorMessage(error, t('errors.aiDesignFailed')))
@@ -221,7 +337,7 @@ export function useCharacterCreationSubmit({
     } finally {
       setIsAiDesigning(false)
     }
-  }, [aiCreateProjectCharacter, aiDesignAssetHubCharacter, aiInstruction, mode, setAiInstruction, setDescription, t])
+  }, [aiCreateProjectCharacter, aiDesignAssetHubCharacter, aiInstruction, mode, setAiInstruction, setDescription, setVoicePreviewText, setVoicePrompt, t])
 
   const handleSubmit = useCallback(async () => {
     if (isSubAppearance) {
@@ -249,17 +365,27 @@ export function useCharacterCreationSubmit({
     try {
       setIsSubmitting(true)
       if (mode === 'asset-hub') {
-        await createAssetHubCharacter.mutateAsync({
+        const result = await createAssetHubCharacter.mutateAsync({
           name: name.trim(),
           description: description.trim(),
           folderId: folderId ?? null,
           artStyle,
-        })
+          voicePrompt: voicePrompt.trim() || undefined,
+          voicePreviewText: voicePreviewText.trim() || undefined,
+        }) as CreatedCharacterResponse
+        if (result.character?.id) {
+          await tryAutoDesignCharacterVoice(result.character.id)
+        }
       } else {
-        await createProjectCharacter.mutateAsync({
+        const result = await createProjectCharacter.mutateAsync({
           name: name.trim(),
           description: description.trim(),
-        })
+          voicePrompt: voicePrompt.trim() || undefined,
+          voicePreviewText: voicePreviewText.trim() || undefined,
+        }) as CreatedCharacterResponse
+        if (result.character?.id) {
+          await tryAutoDesignCharacterVoice(result.character.id)
+        }
       }
       onSuccess()
       onClose()
@@ -285,6 +411,9 @@ export function useCharacterCreationSubmit({
     onSuccess,
     selectedCharacterId,
     t,
+    tryAutoDesignCharacterVoice,
+    voicePreviewText,
+    voicePrompt,
   ])
 
   const handleSubmitAndGenerate = useCallback(async () => {
@@ -304,33 +433,43 @@ export function useCharacterCreationSubmit({
           description: description.trim(),
           folderId: folderId ?? null,
           artStyle,
+          voicePrompt: voicePrompt.trim() || undefined,
+          voicePreviewText: voicePreviewText.trim() || undefined,
         }) as CreatedCharacterResponse
         const createdCharacterId = result.character?.id
         const createdAppearanceIndex = result.character?.appearances?.[0]?.appearanceIndex
         if (!createdCharacterId || createdAppearanceIndex === undefined) {
           throw new Error(t('errors.createFailed'))
         }
-        await generateAssetHubCharacterImage.mutateAsync({
-          characterId: createdCharacterId,
-          appearanceIndex: createdAppearanceIndex,
-          artStyle,
-          count: characterGenerationCount,
-        })
+        await Promise.all([
+          generateAssetHubCharacterImage.mutateAsync({
+            characterId: createdCharacterId,
+            appearanceIndex: createdAppearanceIndex,
+            artStyle,
+            count: characterGenerationCount,
+          }),
+          tryAutoDesignCharacterVoice(createdCharacterId),
+        ])
       } else {
         const result = await createProjectCharacter.mutateAsync({
           name: name.trim(),
           description: description.trim(),
+          voicePrompt: voicePrompt.trim() || undefined,
+          voicePreviewText: voicePreviewText.trim() || undefined,
         }) as CreatedCharacterResponse
         const createdCharacterId = result.character?.id
         const createdAppearanceId = result.character?.appearances?.[0]?.id
         if (!createdCharacterId || !createdAppearanceId) {
           throw new Error(t('errors.createFailed'))
         }
-        await generateProjectCharacterImage.mutateAsync({
-          characterId: createdCharacterId,
-          appearanceId: createdAppearanceId,
-          count: characterGenerationCount,
-        })
+        await Promise.all([
+          generateProjectCharacterImage.mutateAsync({
+            characterId: createdCharacterId,
+            appearanceId: createdAppearanceId,
+            count: characterGenerationCount,
+          }),
+          tryAutoDesignCharacterVoice(createdCharacterId),
+        ])
       }
 
       onSuccess()
@@ -358,6 +497,9 @@ export function useCharacterCreationSubmit({
     onClose,
     onSuccess,
     t,
+    tryAutoDesignCharacterVoice,
+    voicePreviewText,
+    voicePrompt,
   ])
 
   return {

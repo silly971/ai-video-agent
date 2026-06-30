@@ -34,6 +34,8 @@ export function CharacterCreationModal({
   const [createMode, setCreateMode] = useState<'reference' | 'description'>('description')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [voicePrompt, setVoicePrompt] = useState('')
+  const [voicePreviewText, setVoicePreviewText] = useState('')
   const [aiInstruction, setAiInstruction] = useState('')
   const [artStyle, setArtStyle] = useState('american-comic')
   const [referenceImagesBase64, setReferenceImagesBase64] = useState<string[]>([])
@@ -74,6 +76,8 @@ export function CharacterCreationModal({
     projectId,
     name,
     description,
+    voicePrompt,
+    voicePreviewText,
     aiInstruction,
     artStyle,
     referenceImagesBase64,
@@ -82,6 +86,8 @@ export function CharacterCreationModal({
     selectedCharacterId,
     changeReason,
     setDescription,
+    setVoicePrompt,
+    setVoicePreviewText,
     setAiInstruction,
     onSuccess,
     onClose,
@@ -191,6 +197,10 @@ export function CharacterCreationModal({
             setName={(value) => setName(value)}
             description={description}
             setDescription={(value) => setDescription(value)}
+            voicePrompt={voicePrompt}
+            setVoicePrompt={(value) => setVoicePrompt(value)}
+            voicePreviewText={voicePreviewText}
+            setVoicePreviewText={(value) => setVoicePreviewText(value)}
             aiInstruction={aiInstruction}
             setAiInstruction={(value) => setAiInstruction(value)}
             artStyle={artStyle}
@@ -211,7 +221,6 @@ export function CharacterCreationModal({
             handleClearReference={handleClearReference}
             handleExtractDescription={() => { void handleExtractDescription() }}
             handleAiDesign={() => { void handleAiDesign() }}
-            isSubmitting={isSubmitting}
             isAiDesigning={isAiDesigning}
             isExtracting={isExtracting}
           />

@@ -31,6 +31,8 @@ export interface AIDesignOptions {
 export interface AIDesignResult {
     success: boolean
     prompt?: string
+    voicePrompt?: string
+    voicePreviewText?: string
     availableSlots?: LocationAvailableSlot[]
     error?: string
 }
@@ -125,13 +127,21 @@ export async function aiDesign(options: AIDesignOptions): Promise<AIDesignResult
         return { success: false, error: 'AI返回格式错误' }
     }
 
-    if (!parsedResponse.prompt) {
+    const prompt = typeof parsedResponse.prompt === 'string' ? parsedResponse.prompt.trim() : ''
+    if (!prompt) {
         return { success: false, error: 'AI返回缺少prompt字段' }
     }
 
+    const rawVoicePrompt = parsedResponse.voice_prompt ?? parsedResponse.voicePrompt
+    const rawVoicePreviewText = parsedResponse.voice_preview_text ?? parsedResponse.voicePreviewText
+    const voicePrompt = typeof rawVoicePrompt === 'string' ? rawVoicePrompt.trim() : ''
+    const voicePreviewText = typeof rawVoicePreviewText === 'string' ? rawVoicePreviewText.trim() : ''
+
     return {
         success: true,
-        prompt: typeof parsedResponse.prompt === 'string' ? parsedResponse.prompt : '',
+        prompt,
+        voicePrompt: assetType === 'character' && voicePrompt ? voicePrompt : undefined,
+        voicePreviewText: assetType === 'character' && voicePreviewText ? voicePreviewText : undefined,
         availableSlots: assetType === 'location'
             ? normalizeLocationAvailableSlots(parsedResponse.available_slots)
             : [],

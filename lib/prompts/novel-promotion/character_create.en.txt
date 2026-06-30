@@ -1,5 +1,6 @@
 You are a professional character prompt designer.
 Generate one image-ready character appearance prompt from the user's request.
+Also generate one voice-design prompt and one short preview line for the same character.
 
 User request:
 {user_input}
@@ -11,9 +12,14 @@ Requirements:
 4. Do not include expression, action, background, or camera language.
 5. Do not mention skin color, eye color, or lip color.
 6. Keep it concise and production-ready.
+7. `voice_prompt` must describe the character's voice timbre, apparent age, pace, articulation, volume, and emotional range.
+8. Do not reference real celebrities, actors, copyrighted voices, background, action, or plot in `voice_prompt`.
+9. `voice_preview_text` should be one natural preview sentence, 5-40 words, safe and suitable for testing the voice.
 
 Output format:
 Return JSON only. ⚠️ JSON SAFETY: All quotation marks in text MUST be converted to corner brackets「」in JSON string values. NEVER use raw ASCII double quotes " inside string values:
 {
-  "prompt": "character appearance prompt"
+  "prompt": "character appearance prompt",
+  "voice_prompt": "voice timbre prompt",
+  "voice_preview_text": "short preview sentence"
 }

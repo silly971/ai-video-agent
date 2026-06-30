@@ -21,6 +21,12 @@
         "modifyDescription": "修改描述",
         "descPlaceholder": "请输入角色外貌描述...",
         "modifyDescriptionPlaceholder": "描述要对主形象做什么修改,例如:换上正装、受伤后的状态、披上斗篷...",
+        "voicePrompt": "角色音色",
+        "voicePromptPlaceholder": "描述角色的声音质感、语速、年龄感和情绪表达，例如：清亮的年轻女声，语速自然，语气坚定，情绪起伏细腻",
+        "voicePreviewPlaceholder": "音色试听台词，可留空使用默认文本",
+        "defaultVoiceName": "角色",
+        "defaultVoicePreviewText": "你好，我是{name}，请听听我的声音。",
+        "voiceNameSuffix": "音色",
         "selectMainCharacter": "选择主角色",
         "selectCharacterPlaceholder": "请选择角色...",
         "appearancesCount": "{count} 个形象",
@@ -93,6 +99,7 @@
         "extractDescriptionFailed": "提取描述失败",
         "createFailed": "创建失败",
         "aiDesignFailed": "AI 设计失败",
+        "voiceDesignFailed": "角色已创建，但自动音色生成失败",
         "addSubAppearanceFailed": "添加子形象失败",
         "insufficientBalance": "账户余额不足"
     }
