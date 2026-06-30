@@ -55,6 +55,12 @@ describe('normalizeAnyError provider-specific mapping', () => {
     expect(normalized.retryable).toBe(false)
   })
 
+  it('maps worker model configuration failures to MODEL_NOT_CONFIGURED', () => {
+    const normalized = normalizeAnyError(new Error('Character model not configured'))
+    expect(normalized.code).toBe('MODEL_NOT_CONFIGURED')
+    expect(normalized.retryable).toBe(false)
+  })
+
   it('maps template status 415 message to VIDEO_API_FORMAT_UNSUPPORTED', () => {
     const normalized = normalizeAnyError(
       new Error('Template request failed with status 415: unsupported media type'),

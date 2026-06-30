@@ -83,6 +83,15 @@ function isModelNotConfiguredMessage(message: string): boolean {
     'multiple audio models are enabled',
     'multiple lipsync models are enabled',
     'multiple llm models are enabled',
+    'character model not configured',
+    'location model not configured',
+    'storyboard model not configured',
+    'edit model not configured',
+    'video model not configured',
+    'audio model not configured',
+    'user character model not configured',
+    'user location model not configured',
+    'user edit model not configured',
   ])
 }
 

@@ -147,4 +147,54 @@ describe('api contract - user api-config openai-compatible media templates', () 
       },
     })
   })
+
+  it('allows OpenAI-compatible media custom pricing to use provider-native template fields', async () => {
+    installAuthMocks()
+    mockAuthenticated('user-1')
+    const route = await import('@/app/api/user/api-config/route')
+
+    const req = buildMockRequest({
+      path: '/api/user/api-config',
+      method: 'PUT',
+      body: {
+        providers: [
+          { id: 'openai-compatible:oa-1', name: 'New API', baseUrl: 'https://newapi.test/v1', apiKey: 'sk-test' },
+        ],
+        models: [
+          {
+            modelId: 'gpt-image-1',
+            modelKey: 'openai-compatible:oa-1::gpt-image-1',
+            name: 'Image',
+            type: 'image',
+            provider: 'openai-compatible:oa-1',
+            customPricing: {
+              image: {
+                optionPrices: {
+                  size: {
+                    '1024x1024': 0.04,
+                    '1536x1024': 0.08,
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    })
+
+    const res = await route.PUT(req, routeContext)
+    expect(res.status).toBe(200)
+
+    const savedModels = readSavedModelsFromUpsert()
+    expect(savedModels[0]?.customPricing).toMatchObject({
+      image: {
+        optionPrices: {
+          size: {
+            '1024x1024': 0.04,
+            '1536x1024': 0.08,
+          },
+        },
+      },
+    })
+  })
 })

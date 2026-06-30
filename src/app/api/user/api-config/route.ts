@@ -1147,6 +1147,13 @@ function validateCustomPricingCapabilityMappings(models: StoredModel[]) {
     const model = models[index]
     if (model.type !== 'image' && model.type !== 'video') continue
 
+    if (OPTIONAL_PRICING_PROVIDER_KEYS.has(getProviderKey(model.provider))) {
+      // Compatibility/custom providers may use provider-native template fields
+      // such as OpenAI's `size`, which do not have to match the app's built-in
+      // capability field names.
+      continue
+    }
+
     const mediaPricing = model.type === 'image'
       ? model.customPricing?.image
       : model.customPricing?.video
@@ -1155,10 +1162,10 @@ function validateCustomPricingCapabilityMappings(models: StoredModel[]) {
 
     const context = resolveBuiltinModelContext(model.type, model.modelKey)
     if (!context) {
-      throw new ApiError('INVALID_PARAMS', {
-        code: 'CAPABILITY_MODEL_UNSUPPORTED',
-        field: `models[${index}].customPricing.${model.type}.optionPrices`,
-      })
+      // Custom OpenAI-compatible media models often do not have a built-in
+      // capability catalog. Their option price keys are still valid user data:
+      // billing resolves them by matching runtime capability selections.
+      continue
     }
 
     const optionFields = getCapabilityOptionFields(model.type, context.capabilities)

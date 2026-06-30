@@ -416,6 +416,62 @@ describe('api specific - user api-config PUT provider uniqueness', () => {
     expect(prismaMock.userPreference.upsert).toHaveBeenCalledTimes(1)
   })
 
+  it('accepts custom option pricing for openai-compatible media models without a built-in capability catalog', async () => {
+    installAuthMocks()
+    mockAuthenticated('user-1')
+    const route = await import('@/app/api/user/api-config/route')
+
+    const req = buildMockRequest({
+      path: '/api/user/api-config',
+      method: 'PUT',
+      body: {
+        providers: [
+          {
+            id: 'openai-compatible:oa-1',
+            name: 'OpenAI Node',
+            baseUrl: 'https://oa.test/v1',
+            apiKey: 'oa-key',
+            apiMode: 'openai-official',
+          },
+        ],
+        models: [
+          {
+            type: 'image',
+            provider: 'openai-compatible:oa-1',
+            modelId: 'gpt-image-1',
+            modelKey: 'openai-compatible:oa-1::gpt-image-1',
+            name: 'Image Model',
+            customPricing: {
+              image: {
+                optionPrices: {
+                  size: {
+                    '1024x1024': 0.04,
+                    '1536x1024': 0.08,
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    })
+
+    const res = await route.PUT(req, routeContext)
+    expect(res.status).toBe(200)
+
+    const savedModels = readSavedModelsFromUpsert()
+    expect(savedModels[0]?.customPricing).toMatchObject({
+      image: {
+        optionPrices: {
+          size: {
+            '1024x1024': 0.04,
+            '1536x1024': 0.08,
+          },
+        },
+      },
+    })
+  })
+
   it('requires llmProtocol when adding a new openai-compatible llm model', async () => {
     installAuthMocks()
     mockAuthenticated('user-1')

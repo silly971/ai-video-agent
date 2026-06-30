@@ -515,6 +515,7 @@ export function apiHandler<TParams extends RouteParams>(handler: ApiHandler<TPar
               method: req.method,
               path: req.nextUrl.pathname,
               errorType,
+              errorDetails: apiError.details || null,
             },
             error:
               error instanceof Error

@@ -25,8 +25,8 @@ const submitTaskMock = vi.hoisted(() => vi.fn<(input: unknown) => Promise<{
 const configServiceMock = vi.hoisted(() => ({
   getProjectModelConfig: vi.fn(async () => ({
     analysisModel: null,
-    characterModel: 'img::character',
-    locationModel: 'img::location',
+    characterModel: 'img::character' as string | null,
+    locationModel: 'img::location' as string | null,
     storyboardModel: null,
     editModel: null,
     videoModel: null,
@@ -81,6 +81,39 @@ describe('api specific - novel promotion generate image art style', () => {
 
     const submitArg = submitTaskMock.mock.calls[0]?.[0] as { payload?: Record<string, unknown> } | undefined
     expect(submitArg?.payload?.artStyle).toBe('realistic')
+  })
+
+  it('returns MODEL_NOT_CONFIGURED before queueing when character image model is missing', async () => {
+    configServiceMock.getProjectModelConfig.mockResolvedValueOnce({
+      analysisModel: null,
+      characterModel: null,
+      locationModel: 'img::location',
+      storyboardModel: null,
+      editModel: null,
+      videoModel: null,
+      videoRatio: '16:9',
+      artStyle: 'american-comic',
+      capabilityDefaults: {},
+      capabilityOverrides: {},
+    })
+    const mod = await import('@/app/api/novel-promotion/[projectId]/generate-image/route')
+    const req = buildMockRequest({
+      path: '/api/novel-promotion/project-1/generate-image',
+      method: 'POST',
+      body: {
+        type: 'character',
+        id: 'character-1',
+        appearanceId: 'appearance-1',
+      },
+    })
+
+    const res = await mod.POST(req, { params: Promise.resolve({ projectId: 'project-1' }) })
+    const body = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(body.error.code).toBe('MODEL_NOT_CONFIGURED')
+    expect(body.error.message).toContain('角色图像模型')
+    expect(submitTaskMock).not.toHaveBeenCalled()
   })
 
   it('rejects invalid artStyle with invalid params', async () => {

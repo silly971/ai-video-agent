@@ -140,6 +140,21 @@ function requireLocationBackedKind(kind: AssetKind): LocationBackedAssetKind {
   return kind
 }
 
+function requireImageModelConfigured(modelKey: string | null, field: 'characterModel' | 'locationModel' | 'editModel') {
+  if (modelKey) return
+
+  const fieldNames: Record<typeof field, string> = {
+    characterModel: '角色图像模型',
+    locationModel: '场景/道具图像模型',
+    editModel: '修图/编辑模型',
+  }
+
+  throw new ApiError('MODEL_NOT_CONFIGURED', {
+    field,
+    message: `请先在设置中心配置${fieldNames[field]}后再生成图片。`,
+  })
+}
+
 export async function submitAssetGenerateTask(input: AssetGenerateInput) {
   return input.access.scope === 'global'
     ? submitGlobalAssetGenerateTask(input)
@@ -208,6 +223,7 @@ async function submitGlobalAssetGenerateTask(input: AssetGenerateInput) {
   const imageModel = input.kind === 'character'
     ? userModelConfig.characterModel
     : userModelConfig.locationModel
+  requireImageModelConfigured(imageModel, input.kind === 'character' ? 'characterModel' : 'locationModel')
 
   let billingPayload: Record<string, unknown>
   try {
@@ -297,6 +313,7 @@ async function submitProjectAssetGenerateTask(input: AssetGenerateInput) {
   const imageModel = normalizedKind === 'character'
     ? projectModelConfig.characterModel
     : projectModelConfig.locationModel
+  requireImageModelConfigured(imageModel, normalizedKind === 'character' ? 'characterModel' : 'locationModel')
   const payloadBase = artStyle
     ? { ...input.body, type: input.kind, id: input.assetId, artStyle, count }
     : { ...input.body, type: input.kind, id: input.assetId, count }
@@ -417,6 +434,7 @@ async function submitGlobalAssetModifyTask(input: AssetModifyInput) {
   }
   const userModelConfig = await getUserModelConfig(input.access.userId)
   const imageModel = userModelConfig.editModel
+  requireImageModelConfigured(imageModel, 'editModel')
   let billingPayload: Record<string, unknown>
   try {
     billingPayload = buildImageBillingPayloadFromUserConfig({
@@ -488,6 +506,7 @@ async function submitProjectAssetModifyTask(input: AssetModifyInput) {
     },
   }
   const projectModelConfig = await getProjectModelConfig(projectId, input.access.userId)
+  requireImageModelConfigured(projectModelConfig.editModel, 'editModel')
   let billingPayload: Record<string, unknown>
   try {
     billingPayload = await buildImageBillingPayload({
