@@ -1,7 +1,8 @@
+import type { Prisma } from '@prisma/client'
 import { createScopedLogger } from '@/lib/logging/core'
 import { prisma } from '@/lib/prisma'
 import { addTaskJob } from '@/lib/task/queues'
-import { resolveTaskLocaleFromBody } from '@/lib/task/resolve-locale'
+import { resolveTaskLocaleFromBodyOrDefault } from '@/lib/task/resolve-locale'
 import { markTaskFailed } from '@/lib/task/service'
 import { publishTaskEvent } from '@/lib/task/publisher'
 import { TASK_EVENT_TYPE, TASK_TYPE, type TaskType } from '@/lib/task/types'
@@ -32,6 +33,23 @@ function toTaskPayload(value: unknown): Record<string, unknown> | null {
   return null
 }
 
+function toObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return value as Record<string, unknown>
+}
+
+function withTaskPayloadLocale(value: unknown, locale: string): Record<string, unknown> | null {
+  const payload = toTaskPayload(value)
+  if (!payload) return null
+  return {
+    ...payload,
+    meta: {
+      ...toObject(payload.meta),
+      locale,
+    },
+  }
+}
+
 async function recoverQueuedTasks() {
   const rows = await prisma.task.findMany({
     where: {
@@ -57,20 +75,8 @@ async function recoverQueuedTasks() {
       continue
     }
     try {
-      const locale = resolveTaskLocaleFromBody(task.payload)
-      if (!locale) {
-        await markTaskFailed(task.id, 'TASK_LOCALE_REQUIRED', 'task locale is missing')
-        logger.error({
-          action: 'watchdog.reenqueue_locale_missing',
-          message: 'task locale is missing',
-          taskId: task.id,
-          projectId: task.projectId,
-          userId: task.userId,
-          errorCode: 'TASK_LOCALE_REQUIRED',
-          retryable: false,
-        })
-        continue
-      }
+      const locale = resolveTaskLocaleFromBodyOrDefault(task.payload)
+      const payload = withTaskPayloadLocale(task.payload, locale)
 
       await addTaskJob({
         taskId: task.id,
@@ -80,12 +86,13 @@ async function recoverQueuedTasks() {
         episodeId: task.episodeId,
         targetType: task.targetType,
         targetId: task.targetId,
-        payload: toTaskPayload(task.payload),
+        payload,
         userId: task.userId,
       })
       await prisma.task.update({
         where: { id: task.id },
         data: {
+          ...(payload ? { payload: payload as Prisma.InputJsonValue } : {}),
           enqueuedAt: new Date(),
           enqueueAttempts: { increment: 1 },
           lastEnqueueError: null,

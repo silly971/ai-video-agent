@@ -4,8 +4,8 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { GoogleGenAI } from '@google/genai'
 import {
   resolveModelGatewayRoute,
-  runOpenAICompatChatCompletion,
-  runOpenAICompatResponsesCompletion,
+  runOpenAICompatChatCompletionStream,
+  runOpenAICompatResponsesStream,
 } from '@/lib/model-gateway'
 import {
   getProviderConfig,
@@ -118,41 +118,22 @@ export async function chatCompletionStream(
       const compatEngine = selection.llmProtocol === 'responses'
         ? 'openai_compat_responses'
         : 'openai_compat_chat_completions'
-      emitStreamStage(callbacks, streamStep, 'streaming', 'openai-compat')
       const completion = selection.llmProtocol === 'responses'
-        ? await runOpenAICompatResponsesCompletion({
+        ? await runOpenAICompatResponsesStream({
           userId,
           providerId: provider,
           modelId: resolvedModelId,
           messages,
           temperature,
-        })
-        : await runOpenAICompatChatCompletion({
+        }, callbacks, streamStep)
+        : await runOpenAICompatChatCompletionStream({
           userId,
           providerId: provider,
           modelId: resolvedModelId,
           messages,
           temperature,
-        })
+        }, callbacks, streamStep)
       const completionParts = getCompletionParts(completion)
-      let seq = 1
-      if (completionParts.reasoning) {
-        emitStreamChunk(callbacks, streamStep, {
-          kind: 'reasoning',
-          delta: completionParts.reasoning,
-          seq,
-          lane: 'reasoning',
-        })
-        seq += 1
-      }
-      if (completionParts.text) {
-        emitStreamChunk(callbacks, streamStep, {
-          kind: 'text',
-          delta: completionParts.text,
-          seq,
-          lane: 'main',
-        })
-      }
       logLlmRawOutput({
         userId,
         projectId,

@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import type { InternalLLMStreamStepMeta } from '@/lib/llm-observe/internal-stream-context'
 import type { ChatCompletionStreamCallbacks } from '@/lib/llm/types'
 import { buildOpenAIChatCompletion } from '@/lib/llm/providers/openai-compat'
 import { extractStreamDeltaParts } from '@/lib/llm/utils'
@@ -24,10 +25,10 @@ type OpenAIStreamWithFinal = AsyncIterable<unknown> & {
 export async function runOpenAICompatChatCompletionStream(
   input: OpenAICompatChatRequest,
   callbacks?: ChatCompletionStreamCallbacks,
+  stepMeta: InternalLLMStreamStepMeta | undefined = resolveStreamStepMeta({}),
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
   const config = await resolveOpenAICompatClientConfig(input.userId, input.providerId)
   const client = createOpenAICompatClient(config)
-  const stepMeta = resolveStreamStepMeta({})
 
   emitStreamStage(callbacks, stepMeta, 'streaming', 'openai-compat')
   const stream = await client.chat.completions.create({
@@ -81,7 +82,5 @@ export async function runOpenAICompatChatCompletionStream(
     undefined,
   )
 
-  emitStreamStage(callbacks, stepMeta, 'completed', 'openai-compat')
-  callbacks?.onComplete?.(text, stepMeta)
   return completion
 }

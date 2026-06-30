@@ -198,13 +198,6 @@ export function isPresetComingSoonModelKey(modelKey: string): boolean {
 
 // 预设提供商（API Key 唯一归属于 provider id）
 export const PRESET_PROVIDERS: Omit<Provider, 'apiKey' | 'hasApiKey'>[] = [
-    { id: 'ark', name: 'Volcengine Ark' },
-    { id: 'google', name: 'Google AI Studio' },
-    { id: 'bailian', name: 'Alibaba Bailian' },
-    { id: 'openrouter', name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
-    { id: 'minimax', name: 'MiniMax Hailuo', baseUrl: 'https://api.minimaxi.com/v1' },
-    { id: 'vidu', name: 'Vidu' },
-    { id: 'fal', name: 'FAL' },
 ]
 
 const ZH_PROVIDER_NAME_MAP: Record<string, string> = {

@@ -59,6 +59,11 @@ describe('billing/submitter integration', () => {
     const billing = task?.billingInfo as { billable?: boolean; source?: string } | null
     expect(billing?.billable).toBe(true)
     expect(billing?.source).toBe('task')
+    expect(task?.payload).toMatchObject({
+      meta: {
+        locale: 'en',
+      },
+    })
   })
 
   it('marks task as failed when balance is insufficient', async () => {

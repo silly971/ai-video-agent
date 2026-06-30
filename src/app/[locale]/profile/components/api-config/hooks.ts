@@ -69,6 +69,23 @@ interface UseProvidersReturn {
     getModelsByType: (type: CustomModel['type']) => CustomModel[]
 }
 
+const REMOVED_DEFAULT_PROVIDER_KEYS = new Set([
+    'ark',
+    'google',
+    'bailian',
+    'openrouter',
+    'minimax',
+    'vidu',
+    'fal',
+])
+
+function shouldKeepSavedProvider(savedProvider: Provider): boolean {
+    const providerKey = getProviderKey(savedProvider.id)
+    if (!REMOVED_DEFAULT_PROVIDER_KEYS.has(providerKey)) return true
+    const apiKey = typeof savedProvider.apiKey === 'string' ? savedProvider.apiKey.trim() : ''
+    return apiKey.length > 0
+}
+
 export function mergeProvidersForDisplay(
     savedProviders: Provider[],
     presetProviders: Provider[],
@@ -78,6 +95,7 @@ export function mergeProvidersForDisplay(
     const seenPresetKeys = new Set<string>()
 
     for (const savedProvider of savedProviders) {
+        if (!shouldKeepSavedProvider(savedProvider)) continue
         if (seenProviderIds.has(savedProvider.id)) continue
         seenProviderIds.add(savedProvider.id)
 

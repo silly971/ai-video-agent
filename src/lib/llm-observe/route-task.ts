@@ -7,7 +7,7 @@ import { LLM_OBSERVE_DEFAULT_MODE, LLM_OBSERVE_ENABLED } from './config'
 import type { LLMObserveDisplayMode } from './config'
 import { getLLMTaskPolicy } from './task-policy'
 import { getTaskFlowMeta } from './stage-pipeline'
-import { resolveRequiredTaskLocale } from '@/lib/task/resolve-locale'
+import { resolveTaskLocaleOrDefault } from '@/lib/task/resolve-locale'
 import { getProjectModelConfig, getUserModelConfig } from '@/lib/config-service'
 
 export function toObject(value: unknown): Record<string, unknown> {
@@ -80,7 +80,7 @@ export async function maybeSubmitLLMTask(params: {
     policy.displayMode || LLM_OBSERVE_DEFAULT_MODE,
   )
   const payloadMeta = toObject(payload.meta)
-  const locale = resolveRequiredTaskLocale(params.request, payload)
+  const locale = resolveTaskLocaleOrDefault(params.request, payload)
   const userTierFromPayload = typeof payloadMeta.userTier === 'string' ? payloadMeta.userTier : null
   const priority = params.priority ?? policy.priority ?? 0
   const defaultFlowMeta = getTaskFlowMeta(params.type)

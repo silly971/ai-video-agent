@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-errors'
-import { locales, type Locale } from '@/i18n/routing'
+import { defaultLocale, locales, type Locale } from '@/i18n/routing'
 
 function toObject(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
@@ -47,6 +47,14 @@ export function resolveTaskLocale(request: NextRequest, body?: unknown): Locale 
   const payloadLocale = resolveTaskLocaleFromBody(body)
   if (payloadLocale) return payloadLocale
   return readLocaleFromHeader(request)
+}
+
+export function resolveTaskLocaleOrDefault(request: NextRequest, body?: unknown): Locale {
+  return resolveTaskLocale(request, body) ?? defaultLocale
+}
+
+export function resolveTaskLocaleFromBodyOrDefault(body?: unknown): Locale {
+  return resolveTaskLocaleFromBody(body) ?? defaultLocale
 }
 
 export function resolveRequiredTaskLocale(request: NextRequest, body?: unknown): Locale {

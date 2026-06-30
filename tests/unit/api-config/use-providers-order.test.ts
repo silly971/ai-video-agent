@@ -62,4 +62,20 @@ describe('useProviders provider order merge', () => {
       hasApiKey: true,
     })
   })
+
+  it('filters stale empty built-in providers after removing default provider pool entries', () => {
+    const savedProviders: Provider[] = [
+      { id: 'ark', name: 'Volcengine Ark' },
+      { id: 'openrouter', name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
+      { id: 'google', name: 'Google AI Studio', apiKey: 'google-key' },
+      { id: 'openai-compatible:oa-1', name: 'OpenAI A', baseUrl: 'https://oa.test/v1' },
+    ]
+
+    const merged = mergeProvidersForDisplay(savedProviders, [])
+
+    expect(merged.map((provider) => provider.id)).toEqual([
+      'google',
+      'openai-compatible:oa-1',
+    ])
+  })
 })

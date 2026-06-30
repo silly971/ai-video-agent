@@ -16,24 +16,24 @@ const resolveLlmRuntimeModelMock = vi.hoisted(() =>
   })),
 )
 
-const runOpenAICompatResponsesCompletionMock = vi.hoisted(() =>
+const runOpenAICompatResponsesStreamMock = vi.hoisted(() =>
   vi.fn(async () => ({
-    id: 'chatcmpl_responses_1',
+    id: 'chatcmpl_stream_1',
     object: 'chat.completion',
     created: 1,
     model: 'gpt-4.1-mini',
-    choices: [{ index: 0, message: { role: 'assistant', content: 'responses-stream' }, finish_reason: 'stop' }],
+    choices: [{ index: 0, message: { role: 'assistant', content: 'responses-stream-ok' }, finish_reason: 'stop' }],
     usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   })),
 )
 
-const runOpenAICompatChatCompletionMock = vi.hoisted(() =>
+const runOpenAICompatChatCompletionStreamMock = vi.hoisted(() =>
   vi.fn(async () => ({
-    id: 'chatcmpl_chat_1',
+    id: 'chatcmpl_stream_1',
     object: 'chat.completion',
     created: 1,
     model: 'gpt-4.1-mini',
-    choices: [{ index: 0, message: { role: 'assistant', content: 'chat-stream' }, finish_reason: 'stop' }],
+    choices: [{ index: 0, message: { role: 'assistant', content: 'chat-stream-ok' }, finish_reason: 'stop' }],
     usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   })),
 )
@@ -55,8 +55,8 @@ const recordCompletionUsageMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/model-gateway', () => ({
   resolveModelGatewayRoute: vi.fn(() => 'openai-compat'),
-  runOpenAICompatChatCompletion: runOpenAICompatChatCompletionMock,
-  runOpenAICompatResponsesCompletion: runOpenAICompatResponsesCompletionMock,
+  runOpenAICompatResponsesStream: runOpenAICompatResponsesStreamMock,
+  runOpenAICompatChatCompletionStream: runOpenAICompatChatCompletionStreamMock,
 }))
 
 vi.mock('@/lib/api-config', () => ({
@@ -95,23 +95,30 @@ describe('llm chatCompletionStream openai-compatible protocol routing', () => {
     vi.clearAllMocks()
   })
 
-  it('uses responses executor when llmProtocol=responses', async () => {
-    const onChunk = vi.fn()
+  it('uses streaming responses executor when llmProtocol=responses', async () => {
+    const onComplete = vi.fn()
+
     const completion = await chatCompletionStream(
       'user-1',
       'openai-compatible:node-1::gpt-4.1-mini',
       [{ role: 'user', content: 'hello' }],
-      { temperature: 0.2 },
-      { onChunk },
+      { temperature: 0.2, streamStepId: 'step-1', streamStepAttempt: 2 },
+      { onComplete },
     )
 
-    expect(runOpenAICompatResponsesCompletionMock).toHaveBeenCalledTimes(1)
-    expect(runOpenAICompatChatCompletionMock).not.toHaveBeenCalled()
-    expect(completion.choices[0]?.message?.content).toBe('responses-stream')
-    expect(onChunk).toHaveBeenCalled()
+    expect(runOpenAICompatResponsesStreamMock).toHaveBeenCalledTimes(1)
+    expect(runOpenAICompatChatCompletionStreamMock).not.toHaveBeenCalled()
+    const responsesStreamCall = runOpenAICompatResponsesStreamMock.mock.calls[0] as unknown[] | undefined
+    expect(responsesStreamCall?.[2]).toEqual(expect.objectContaining({
+      id: 'step-1',
+      attempt: 2,
+    }))
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(onComplete).toHaveBeenCalledWith('responses-stream-ok', expect.objectContaining({ id: 'step-1' }))
+    expect(completion.choices[0]?.message?.content).toBe('responses-stream-ok')
   })
 
-  it('uses chat-completions executor when llmProtocol=chat-completions', async () => {
+  it('uses streaming chat-completions executor when llmProtocol=chat-completions', async () => {
     resolveLlmRuntimeModelMock.mockResolvedValueOnce({
       provider: 'openai-compatible:node-1',
       modelId: 'gpt-4.1-mini',
@@ -124,12 +131,11 @@ describe('llm chatCompletionStream openai-compatible protocol routing', () => {
       'openai-compatible:node-1::gpt-4.1-mini',
       [{ role: 'user', content: 'hello' }],
       { temperature: 0.2 },
-      undefined,
     )
 
-    expect(runOpenAICompatChatCompletionMock).toHaveBeenCalledTimes(1)
-    expect(runOpenAICompatResponsesCompletionMock).not.toHaveBeenCalled()
-    expect(completion.choices[0]?.message?.content).toBe('chat-stream')
+    expect(runOpenAICompatChatCompletionStreamMock).toHaveBeenCalledTimes(1)
+    expect(runOpenAICompatResponsesStreamMock).not.toHaveBeenCalled()
+    expect(completion.choices[0]?.message?.content).toBe('chat-stream-ok')
   })
 
   it('fails fast when llmProtocol is missing for openai-compatible model', async () => {
@@ -146,11 +152,10 @@ describe('llm chatCompletionStream openai-compatible protocol routing', () => {
         'openai-compatible:node-1::gpt-4.1-mini',
         [{ role: 'user', content: 'hello' }],
         { temperature: 0.2 },
-        undefined,
       ),
     ).rejects.toThrow('MODEL_LLM_PROTOCOL_REQUIRED')
 
-    expect(runOpenAICompatChatCompletionMock).not.toHaveBeenCalled()
-    expect(runOpenAICompatResponsesCompletionMock).not.toHaveBeenCalled()
+    expect(runOpenAICompatChatCompletionStreamMock).not.toHaveBeenCalled()
+    expect(runOpenAICompatResponsesStreamMock).not.toHaveBeenCalled()
   })
 })

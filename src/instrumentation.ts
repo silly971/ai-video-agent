@@ -1,6 +1,8 @@
 // Next.js Instrumentation - 在应用启动时执行
 // https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
 
+import type { Prisma } from '@prisma/client'
+
 export async function register() {
   // 在 Edge Runtime 中直接返回，避免加载 Prisma（它使用了动态代码生成）
   if (process.env.NEXT_RUNTIME === 'edge') {
@@ -38,7 +40,7 @@ export async function register() {
     // 解决 Redis 重启后 DB 仍为 queued 但 BullMQ Job 丢失的孤儿任务问题
     try {
       const { addTaskJob } = await import('@/lib/task/queues')
-      const { locales } = await import('@/i18n/routing')
+      const { defaultLocale, locales } = await import('@/i18n/routing')
       const { TASK_STATUS, TASK_TYPE } = await import('@/lib/task/types')
       type TaskBillingInfo = import('@/lib/task/types').TaskBillingInfo
       type TaskJobData = import('@/lib/task/types').TaskJobData
@@ -60,6 +62,18 @@ export async function register() {
       function toTaskPayload(value: unknown): Record<string, unknown> | null {
         if (!value || typeof value !== 'object' || Array.isArray(value)) return null
         return value as Record<string, unknown>
+      }
+
+      function withTaskPayloadLocale(value: unknown, locale: TaskJobData['locale']): Record<string, unknown> | null {
+        const payload = toTaskPayload(value)
+        if (!payload) return null
+        return {
+          ...payload,
+          meta: {
+            ...toObject(payload.meta),
+            locale,
+          },
+        }
       }
 
       function toTaskBillingInfo(value: unknown): TaskBillingInfo | null {
@@ -89,7 +103,7 @@ export async function register() {
         })
       }
 
-      function resolveTaskLocaleFromPayload(payload: unknown): TaskJobData['locale'] | null {
+      function resolveTaskLocaleFromPayload(payload: unknown): TaskJobData['locale'] {
         const payloadObj = toObject(payload)
         const payloadMeta = toObject(payloadObj.meta)
         const raw = typeof payloadMeta.locale === 'string'
@@ -97,14 +111,14 @@ export async function register() {
           : typeof payloadObj.locale === 'string'
             ? payloadObj.locale
             : ''
-        if (!raw.trim()) return null
+        if (!raw.trim()) return defaultLocale
         const normalized = raw.trim().toLowerCase()
         for (const locale of locales) {
           if (normalized === locale || normalized.startsWith(`${locale}-`)) {
             return locale
           }
         }
-        return null
+        return defaultLocale
       }
 
       const RE_ENQUEUE_BATCH_SIZE = 100
@@ -150,19 +164,7 @@ export async function register() {
             }
 
             const locale = resolveTaskLocaleFromPayload(task.payload)
-            if (!locale) {
-              await prisma.task.update({
-                where: { id: task.id },
-                data: {
-                  status: TASK_STATUS.FAILED,
-                  errorCode: 'TASK_LOCALE_REQUIRED',
-                  errorMessage: 'task locale is missing',
-                  finishedAt: new Date(),
-                },
-              })
-              failed++
-              continue
-            }
+            const payload = withTaskPayloadLocale(task.payload, locale)
 
             const jobData: TaskJobData = {
               taskId: task.id,
@@ -172,7 +174,7 @@ export async function register() {
               episodeId: task.episodeId || null,
               targetType: task.targetType,
               targetId: task.targetId,
-              payload: toTaskPayload(task.payload),
+              payload,
               billingInfo: toTaskBillingInfo(task.billingInfo),
               userId: task.userId,
               trace: null,
@@ -181,6 +183,12 @@ export async function register() {
               priority: typeof task.priority === 'number' ? task.priority : 0,
             })
             await markTaskEnqueued(task.id)
+            if (payload) {
+              await prisma.task.update({
+                where: { id: task.id },
+                data: { payload: payload as Prisma.InputJsonValue },
+              })
+            }
             enqueued++
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error)

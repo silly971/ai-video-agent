@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { PRESET_MODELS, PRESET_PROVIDERS } from '@/app/[locale]/profile/components/api-config/types'
 
 describe('api-config minimax preset', () => {
-  it('uses official minimax baseUrl in preset provider', () => {
+  it('does not preload minimax in the provider pool', () => {
     const minimaxProvider = PRESET_PROVIDERS.find((provider) => provider.id === 'minimax')
-    expect(minimaxProvider).toBeDefined()
-    expect(minimaxProvider?.baseUrl).toBe('https://api.minimaxi.com/v1')
+    expect(minimaxProvider).toBeUndefined()
   })
 
   it('includes all required minimax official llm preset models', () => {
