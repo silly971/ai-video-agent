@@ -9,7 +9,7 @@ import {
 
 type OpenAIImageResponseFormat = 'url' | 'b64_json'
 type OpenAIImageOutputFormat = 'png' | 'jpeg' | 'webp'
-type OpenAIImageGenerateQuality = 'standard' | 'hd' | 'low' | 'medium' | 'high' | 'auto'
+type OpenAIImageGenerateQuality = 'standard' | 'hd' | 'low' | 'medium' | 'high' | 'auto' | '1k' | '4k'
 type OpenAIImageGenerateSize =
   | 'auto'
   | '1024x1024'
@@ -55,8 +55,9 @@ function normalizeOutputFormat(value: unknown): OpenAIImageOutputFormat | undefi
 }
 
 function normalizeGenerateQuality(value: unknown): OpenAIImageGenerateQuality | undefined {
-  const normalized = readStringOption(value, 'quality')
-  if (!normalized) return undefined
+  const raw = readStringOption(value, 'quality')
+  if (!raw) return undefined
+  const normalized = raw.toLowerCase()
   if (
     normalized === 'standard'
     || normalized === 'hd'
@@ -64,10 +65,12 @@ function normalizeGenerateQuality(value: unknown): OpenAIImageGenerateQuality | 
     || normalized === 'medium'
     || normalized === 'high'
     || normalized === 'auto'
+    || normalized === '1k'
+    || normalized === '4k'
   ) {
     return normalized
   }
-  throw new Error(`OPENAI_COMPAT_IMAGE_OPTION_UNSUPPORTED: quality=${normalized}`)
+  throw new Error(`OPENAI_COMPAT_IMAGE_OPTION_UNSUPPORTED: quality=${raw}`)
 }
 
 function normalizeOpenAIImageSize(value: string | undefined): OpenAIImageGenerateSize | undefined {

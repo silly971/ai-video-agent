@@ -5,6 +5,7 @@ import {
   type UnifiedModelType,
 } from '@/lib/model-config-contract'
 import { resolveGenerationOptionsForModel } from '@/lib/model-capabilities/lookup'
+import { findBuiltinCapabilities } from '@/lib/model-capabilities/catalog'
 
 describe('model-capabilities/lookup - image option defaulting', () => {
   const modelType: UnifiedModelType = 'image'
@@ -55,6 +56,30 @@ describe('model-capabilities/lookup - image option defaulting', () => {
     expect(result.options).toEqual({
       resolution: '2K',
       quality: 'high',
+    })
+  })
+
+  it('exposes gpt-image-2 image quality choices for OpenAI-compatible providers', () => {
+    const modelKey = 'openai-compatible:oa-1::gpt-image-2'
+    const capabilities = findBuiltinCapabilities('image', 'openai-compatible:oa-1', 'gpt-image-2')
+
+    expect(capabilities?.image?.qualityOptions).toEqual(['auto', '1k', '4k'])
+
+    const result = resolveGenerationOptionsForModel({
+      modelType,
+      modelKey,
+      capabilities,
+      capabilityDefaults: {
+        [modelKey]: {
+          quality: '4k',
+        },
+      },
+      requireAllFields: true,
+    })
+
+    expect(result.issues).toEqual([])
+    expect(result.options).toEqual({
+      quality: '4k',
     })
   })
 })

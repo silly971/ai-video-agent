@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { mergeProvidersForDisplay } from '@/app/[locale]/profile/components/api-config/hooks'
-import type { Provider } from '@/app/[locale]/profile/components/api-config/types'
+import {
+  filterModelsForAvailableProviders,
+  mergeProvidersForDisplay,
+  sanitizeDefaultModelsForAvailableModels,
+} from '@/app/[locale]/profile/components/api-config/hooks'
+import type { CustomModel, Provider } from '@/app/[locale]/profile/components/api-config/types'
 
 describe('useProviders provider order merge', () => {
   it('preserves saved providers order and appends missing presets at the end', () => {
@@ -77,5 +81,58 @@ describe('useProviders provider order merge', () => {
       'google',
       'openai-compatible:oa-1',
     ])
+  })
+
+  it('filters saved models whose providers are no longer displayed', () => {
+    const providers: Provider[] = [
+      { id: 'openai-compatible:oa-1', name: 'OpenAI A', baseUrl: 'https://oa.test/v1', apiKey: 'oa-key' },
+    ]
+    const models: CustomModel[] = [
+      {
+        modelId: 'fal-ai/kling-video/lipsync/audio-to-video',
+        modelKey: 'fal::fal-ai/kling-video/lipsync/audio-to-video',
+        name: 'Kling Lip Sync',
+        type: 'lipsync',
+        provider: 'fal',
+        price: 0,
+        enabled: true,
+      },
+      {
+        modelId: 'gpt-5.5',
+        modelKey: 'openai-compatible:oa-1::gpt-5.5',
+        name: 'GPT 5.5',
+        type: 'llm',
+        provider: 'openai-compatible:oa-1',
+        price: 0,
+        enabled: true,
+      },
+    ]
+
+    const filtered = filterModelsForAvailableProviders(models, providers)
+    expect(filtered.map((model) => model.modelKey)).toEqual([
+      'openai-compatible:oa-1::gpt-5.5',
+    ])
+  })
+
+  it('clears default models that point at unavailable saved models', () => {
+    const models: CustomModel[] = [
+      {
+        modelId: 'gpt-5.5',
+        modelKey: 'openai-compatible:oa-1::gpt-5.5',
+        name: 'GPT 5.5',
+        type: 'llm',
+        provider: 'openai-compatible:oa-1',
+        price: 0,
+        enabled: true,
+      },
+    ]
+
+    const sanitized = sanitizeDefaultModelsForAvailableModels({
+      analysisModel: 'openai-compatible:oa-1::gpt-5.5',
+      lipSyncModel: 'fal::fal-ai/kling-video/lipsync/audio-to-video',
+    }, models)
+
+    expect(sanitized.analysisModel).toBe('openai-compatible:oa-1::gpt-5.5')
+    expect(sanitized.lipSyncModel).toBe('')
   })
 })

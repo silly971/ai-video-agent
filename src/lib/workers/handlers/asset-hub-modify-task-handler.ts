@@ -96,6 +96,9 @@ export async function handleAssetHubModifyTask(job: Job<TaskJobData>) {
   const resolution = typeof generationOptions?.resolution === 'string'
     ? generationOptions.resolution
     : undefined
+  const quality = typeof generationOptions?.quality === 'string'
+    ? generationOptions.quality
+    : undefined
   const modifyInstruction = readModifyInstruction(payload.modifyPrompt)
 
   if (payload.type === 'character') {
@@ -140,6 +143,7 @@ export async function handleAssetHubModifyTask(job: Job<TaskJobData>) {
         referenceImages,
         aspectRatio: '3:2',
         ...(resolution ? { resolution } : {}),
+        ...(quality ? { quality } : {}),
       },
     })
 
@@ -229,6 +233,7 @@ export async function handleAssetHubModifyTask(job: Job<TaskJobData>) {
         referenceImages,
         aspectRatio,
         ...(resolution ? { resolution } : {}),
+        ...(quality ? { quality } : {}),
       },
     })
 

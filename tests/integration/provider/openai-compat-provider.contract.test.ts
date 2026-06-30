@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { generateImageViaOpenAICompat } from '@/lib/model-gateway/openai-compat/image'
 import { generateVideoViaOpenAICompatTemplate } from '@/lib/model-gateway/openai-compat/template-video'
 import { pollAsyncTask } from '@/lib/async-poll'
 import { startScenarioServer } from '../../helpers/fakes/scenario-server'
@@ -99,6 +100,46 @@ describe('provider contract - openai compatible media template', () => {
       prompt: 'animate this frame',
       image: 'data:image/png;base64,AAAA',
       duration: 5,
+    })
+  })
+
+  it('sends gpt-image-2 quality tiers to the compatible image endpoint', async () => {
+    server!.defineScenario({
+      method: 'POST',
+      path: '/compat/v1/images/generations',
+      mode: 'success',
+      submitResponse: {
+        status: 200,
+        body: { data: [{ b64_json: 'YmFzZTY0' }] },
+      },
+    })
+
+    const result = await generateImageViaOpenAICompat({
+      userId: 'user-local',
+      providerId: 'openai-compatible:provider-local',
+      modelId: 'gpt-image-2',
+      prompt: 'draw a crisp poster',
+      profile: 'openai-compatible',
+      options: {
+        quality: '4K',
+        responseFormat: 'b64_json',
+      },
+    })
+
+    expect(result).toMatchObject({
+      success: true,
+      imageBase64: 'YmFzZTY0',
+      imageUrl: 'data:image/png;base64,YmFzZTY0',
+    })
+
+    const requests = server!.getRequests('POST', '/compat/v1/images/generations')
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.headers.authorization).toBe('Bearer sk-local')
+    expect(JSON.parse(requests[0]?.bodyText || '{}')).toEqual({
+      model: 'gpt-image-2',
+      prompt: 'draw a crisp poster',
+      response_format: 'b64_json',
+      quality: '4k',
     })
   })
 

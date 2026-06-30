@@ -74,6 +74,30 @@ describe('OpenAICompatibleImageGenerator', () => {
     })
   })
 
+  it('passes gpt-image-2 quality tiers through to compatible providers', async () => {
+    openAIState.generate.mockResolvedValueOnce({
+      data: [{ b64_json: 'YmFzZTY0' }],
+    })
+
+    const generator = new OpenAICompatibleImageGenerator('gpt-image-2', 'openai-compatible:oa-1')
+    const result = await generator.generate({
+      userId: 'user-1',
+      prompt: 'draw a crisp poster',
+      options: {
+        quality: '4K',
+        responseFormat: 'b64_json',
+      },
+    })
+
+    expect(result.success).toBe(true)
+    expect(openAIState.generate).toHaveBeenCalledWith({
+      model: 'gpt-image-2',
+      prompt: 'draw a crisp poster',
+      response_format: 'b64_json',
+      quality: '4k',
+    })
+  })
+
   it('uses official images.edit payload when reference images are provided', async () => {
     openAIState.edit.mockResolvedValueOnce({
       data: [{ b64_json: 'ZWRpdA==' }],

@@ -24,6 +24,20 @@
   {
     "modelType": "image",
     "provider": "openai-compatible",
+    "modelId": "gpt-image-2",
+    "capabilities": {
+      "image": {
+        "qualityOptions": [
+          "auto",
+          "1k",
+          "4k"
+        ]
+      }
+    }
+  },
+  {
+    "modelType": "image",
+    "provider": "openai-compatible",
     "modelId": "dall-e-3",
     "capabilities": {
       "image": {

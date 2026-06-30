@@ -42,6 +42,18 @@ interface WorkflowConcurrency {
     video: number
 }
 
+const DEFAULT_MODEL_FIELDS = [
+    'analysisModel',
+    'characterModel',
+    'locationModel',
+    'storyboardModel',
+    'editModel',
+    'videoModel',
+    'audioModel',
+    'lipSyncModel',
+    'voiceDesignModel',
+] as const satisfies readonly (keyof DefaultModels)[]
+
 interface UseProvidersReturn {
     providers: Provider[]
     models: CustomModel[]
@@ -136,6 +148,33 @@ export function mergeProvidersForDisplay(
     }
 
     return merged
+}
+
+export function filterModelsForAvailableProviders(
+    models: CustomModel[],
+    providers: Provider[],
+): CustomModel[] {
+    const availableProviderIds = new Set(providers.map((provider) => provider.id))
+    return models.filter((model) => availableProviderIds.has(model.provider))
+}
+
+export function sanitizeDefaultModelsForAvailableModels(
+    defaultModels: DefaultModels,
+    models: CustomModel[],
+): DefaultModels {
+    const availableModelKeys = new Set(
+        models
+            .filter((model) => model.enabled)
+            .map((model) => model.modelKey),
+    )
+    const sanitized: DefaultModels = { ...defaultModels }
+    for (const field of DEFAULT_MODEL_FIELDS) {
+        const modelKey = sanitized[field]
+        if (modelKey && !availableModelKeys.has(modelKey)) {
+            sanitized[field] = ''
+        }
+    }
+    return sanitized
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -315,14 +354,17 @@ export function useProviders(): UseProvidersReturn {
 
             // 合并预设和已保存的提供商，保持 savedProviders 的顺序不变（拖拽排序依赖）
             const savedProviders: Provider[] = data.providers || []
-            setProviders(mergeProvidersForDisplay(savedProviders, presetProviders))
+            const displayProviders = mergeProvidersForDisplay(savedProviders, presetProviders)
+            const availableProviderIds = new Set(displayProviders.map((provider) => provider.id))
+            setProviders(displayProviders)
+            latestProvidersRef.current = displayProviders
 
             // 合并预设和已保存的模型
             const savedModelsRaw = data.models || []
             const savedModelsNormalized = savedModelsRaw.map((m: CustomModel) => ({
                 ...m,
                 modelKey: m.modelKey || encodeModelKey(m.provider, m.modelId),
-            }))
+            })).filter((m: CustomModel) => availableProviderIds.has(m.provider))
             const savedModels: CustomModel[] = []
             const seen = new Set<string>()
             for (const model of savedModelsNormalized) {
@@ -338,10 +380,11 @@ export function useProviders(): UseProvidersReturn {
                     m.modelKey === presetModelKey
                 )
                 const alwaysEnabledPreset = preset.type === 'lipsync'
+                const providerAvailable = availableProviderIds.has(preset.provider)
                 const mergedPreset: CustomModel = {
                     ...preset,
                     modelKey: presetModelKey,
-                    enabled: isPresetComingSoonModelKey(presetModelKey)
+                    enabled: !providerAvailable || isPresetComingSoonModelKey(presetModelKey)
                         ? false
                         : (hasSavedModels ? (alwaysEnabledPreset || !!saved) : false),
                     price: 0,
@@ -357,15 +400,26 @@ export function useProviders(): UseProvidersReturn {
                 enabled: (m as CustomModel & { enabled?: boolean }).enabled !== false,
             }))
 
-            setModels([...allModels, ...customModels])
+            const nextModels = [...allModels, ...customModels]
+            setModels(nextModels)
+            latestModelsRef.current = nextModels
 
             // 加载默认模型配置
             if (data.defaultModels) {
-                setDefaultModels(data.defaultModels)
+                const sanitizedDefaults = sanitizeDefaultModelsForAvailableModels(
+                    data.defaultModels,
+                    nextModels,
+                )
+                setDefaultModels(sanitizedDefaults)
+                latestDefaultModelsRef.current = sanitizedDefaults
             }
-            setWorkflowConcurrency(parseWorkflowConcurrency((data as { workflowConcurrency?: unknown }).workflowConcurrency))
+            const nextWorkflowConcurrency = parseWorkflowConcurrency((data as { workflowConcurrency?: unknown }).workflowConcurrency)
+            setWorkflowConcurrency(nextWorkflowConcurrency)
+            latestWorkflowConcurrencyRef.current = nextWorkflowConcurrency
             if (data.capabilityDefaults && typeof data.capabilityDefaults === 'object') {
-                setCapabilityDefaults(data.capabilityDefaults as CapabilitySelections)
+                const nextCapabilityDefaults = data.capabilityDefaults as CapabilitySelections
+                setCapabilityDefaults(nextCapabilityDefaults)
+                latestCapabilityDefaultsRef.current = nextCapabilityDefaults
             }
             loadedSuccessfully = true
         } catch (error) {
@@ -409,14 +463,21 @@ export function useProviders(): UseProvidersReturn {
             const currentDefaultModels = overrides?.defaultModels ?? latestDefaultModelsRef.current
             const currentWorkflowConcurrency = overrides?.workflowConcurrency ?? latestWorkflowConcurrencyRef.current
             const currentCapabilityDefaults = overrides?.capabilityDefaults ?? latestCapabilityDefaultsRef.current
-            const enabledModels = currentModels.filter(m => m.enabled)
+            const enabledModels = filterModelsForAvailableProviders(
+                currentModels.filter(m => m.enabled),
+                currentProviders,
+            )
+            const defaultModelsToSave = sanitizeDefaultModelsForAvailableModels(
+                currentDefaultModels,
+                enabledModels,
+            )
             const res = await apiFetch('/api/user/api-config', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     models: enabledModels,
                     providers: currentProviders,
-                    defaultModels: currentDefaultModels,
+                    defaultModels: defaultModelsToSave,
                     workflowConcurrency: currentWorkflowConcurrency,
                     capabilityDefaults: currentCapabilityDefaults,
                 }),
