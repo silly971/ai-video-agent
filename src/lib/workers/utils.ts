@@ -419,7 +419,7 @@ export async function resolveVideoSourceFromGeneration(
       aspectRatio?: string
       generateAudio?: boolean
       lastFrameImageUrl?: string
-      generationMode?: 'normal' | 'firstlastframe'
+      generationMode?: 'normal' | 'firstlastframe' | 'reference_image'
       [key: string]: string | number | boolean | undefined
     }
     pollProgress?: { start?: number; end?: number }
@@ -468,6 +468,7 @@ export async function resolveVideoSourceFromGeneration(
   if (
     params.options?.generationMode === 'normal'
     || params.options?.generationMode === 'firstlastframe'
+    || params.options?.generationMode === 'reference_image'
   ) {
     runtimeSelections.generationMode = params.options.generationMode
   }
@@ -487,7 +488,13 @@ export async function resolveVideoSourceFromGeneration(
   delete providerCapabilityOptions.generationMode
   const providerRequestOptions: Record<string, string | number | boolean> = {}
   for (const [key, value] of Object.entries(params.options || {})) {
-    if (key === 'generationMode' || value === undefined) continue
+    if (value === undefined) continue
+    if (key === 'generationMode') {
+      if (value === 'reference_image') {
+        providerRequestOptions.generationMode = value
+      }
+      continue
+    }
     providerRequestOptions[key] = value
   }
 

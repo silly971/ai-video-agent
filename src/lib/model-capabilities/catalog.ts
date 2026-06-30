@@ -166,6 +166,47 @@ const CAPABILITY_PROVIDER_ALIASES: Readonly<Record<string, string>> = {
   'gemini-compatible': 'google',
 }
 
+/**
+ * Some OpenAI-compatible gateways expose upstream model aliases instead of the
+ * catalog's canonical provider model id. Keep the capability source canonical
+ * while allowing those gateway-local ids to reuse the same option set.
+ */
+const CAPABILITY_MODEL_ID_ALIASES: Readonly<Record<string, string>> = {
+  'video::openai-compatible::seedance-2': 'doubao-seedance-2-0-260128',
+  'video::openai-compatible::doubao-seedance-2': 'doubao-seedance-2-0-260128',
+  'video::openai-compatible::seedance-2-fast': 'doubao-seedance-2-0-fast-260128',
+  'video::openai-compatible::doubao-seedance-2-fast': 'doubao-seedance-2-0-fast-260128',
+}
+
+function cloneCatalogEntry(entry: BuiltinCapabilityCatalogEntry): BuiltinCapabilityCatalogEntry {
+  return {
+    ...entry,
+    capabilities: cloneCapabilities(entry.capabilities),
+  }
+}
+
+function findProviderKeyMatch(
+  loaded: CatalogCache,
+  modelType: UnifiedModelType,
+  providerKey: string,
+  modelId: string,
+): BuiltinCapabilityCatalogEntry | null {
+  return loaded.byProviderKey.get(`${modelType}::${providerKey}::${modelId}`) || null
+}
+
+function findModelAliasMatch(
+  loaded: CatalogCache,
+  modelType: UnifiedModelType,
+  providerKey: string,
+  modelId: string,
+): BuiltinCapabilityCatalogEntry | null {
+  const aliasTarget = CAPABILITY_MODEL_ID_ALIASES[
+    `${modelType}::${providerKey}::${modelId.trim().toLowerCase()}`
+  ]
+  if (!aliasTarget) return null
+  return findProviderKeyMatch(loaded, modelType, providerKey, aliasTarget)
+}
+
 export function findBuiltinCapabilityCatalogEntry(
   modelType: UnifiedModelType,
   provider: string,
@@ -178,32 +219,28 @@ export function findBuiltinCapabilityCatalogEntry(
   const exactKey = `${modelType}::${modelKey}`
   const exactMatch = loaded.exact.get(exactKey)
   if (exactMatch) {
-    return {
-      ...exactMatch,
-      capabilities: cloneCapabilities(exactMatch.capabilities),
-    }
+    return cloneCatalogEntry(exactMatch)
   }
 
   const providerKey = getProviderKey(provider)
-  const fallbackKey = `${modelType}::${providerKey}::${modelId}`
-  const fallback = loaded.byProviderKey.get(fallbackKey)
+  const fallback = findProviderKeyMatch(loaded, modelType, providerKey, modelId)
   if (fallback) {
-    return {
-      ...fallback,
-      capabilities: cloneCapabilities(fallback.capabilities),
-    }
+    return cloneCatalogEntry(fallback)
+  }
+
+  const modelAliasMatch = findModelAliasMatch(loaded, modelType, providerKey, modelId)
+  if (modelAliasMatch) {
+    return cloneCatalogEntry(modelAliasMatch)
   }
 
   // Fallback: check canonical provider alias (e.g. gemini-compatible → google)
   const aliasTarget = CAPABILITY_PROVIDER_ALIASES[providerKey]
   if (aliasTarget) {
-    const aliasKey = `${modelType}::${aliasTarget}::${modelId}`
-    const aliasMatch = loaded.byProviderKey.get(aliasKey)
+    const aliasMatch =
+      findProviderKeyMatch(loaded, modelType, aliasTarget, modelId)
+      || findModelAliasMatch(loaded, modelType, aliasTarget, modelId)
     if (aliasMatch) {
-      return {
-        ...aliasMatch,
-        capabilities: cloneCapabilities(aliasMatch.capabilities),
-      }
+      return cloneCatalogEntry(aliasMatch)
     }
   }
 

@@ -182,7 +182,7 @@ export interface NovelPromotionPanel {
   videoPrompt: string | null
   firstLastFramePrompt?: string | null
   videoUrl: string | null
-  videoGenerationMode?: 'normal' | 'firstlastframe' | null
+  videoGenerationMode?: 'normal' | 'firstlastframe' | 'reference_image' | null
   videoMedia?: MediaRef | null
   lipSyncVideoUrl?: string | null
   lipSyncVideoMedia?: MediaRef | null

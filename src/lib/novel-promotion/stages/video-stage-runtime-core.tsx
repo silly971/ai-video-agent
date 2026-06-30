@@ -63,6 +63,22 @@ function toFieldLabel(field: string): string {
   return field.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase())
 }
 
+function filterNormalVideoGenerationModeDefinitions(
+  definitions: BatchCapabilityDefinition[],
+): BatchCapabilityDefinition[] {
+  return definitions
+    .map((definition) => {
+      if (definition.field !== 'generationMode') return definition
+      return {
+        ...definition,
+        options: definition.options.filter((option) =>
+          option === 'normal' || option === 'reference_image',
+        ),
+      }
+    })
+    .filter((definition) => definition.field !== 'generationMode' || definition.options.length > 0)
+}
+
 export function useVideoStageRuntime({
   projectId,
   episodeId,
@@ -218,10 +234,12 @@ export function useVideoStageRuntime({
   )
 
   const batchCapabilityDefinitions = useMemo<BatchCapabilityDefinition[]>(() => {
-    return resolveEffectiveVideoCapabilityDefinitions({
-      videoCapabilities: selectedBatchModelOption?.capabilities?.video,
-      pricingTiers: batchPricingTiers,
-    })
+    return filterNormalVideoGenerationModeDefinitions(
+      resolveEffectiveVideoCapabilityDefinitions({
+        videoCapabilities: selectedBatchModelOption?.capabilities?.video,
+        pricingTiers: batchPricingTiers,
+      }),
+    )
   }, [batchPricingTiers, selectedBatchModelOption?.capabilities?.video])
 
   useEffect(() => {

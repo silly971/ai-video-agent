@@ -1,6 +1,6 @@
 {
   "name": "ai-video-agent",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "private": true,
   "description": "waoowaoo 全流程 AI 影视生产平台的桌面端 Agent 版本。",
   "main": "electron/main.cjs",

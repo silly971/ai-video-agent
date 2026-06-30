@@ -151,7 +151,13 @@ function buildImageTaskInfo(taskType: TaskType, payload: AnyPayload): TaskBillin
 
 function buildVideoTaskInfo(taskType: TaskType, payload: AnyPayload): TaskBillingInfo | null {
   const firstLastFramePayload = toRecord(payload?.firstLastFrame)
-  const generationMode = Object.keys(firstLastFramePayload).length > 0 ? 'firstlastframe' : 'normal'
+  const generationOptions = toRecord(payload?.generationOptions)
+  const requestedGenerationMode = readString(generationOptions.generationMode)
+  const generationMode = Object.keys(firstLastFramePayload).length > 0
+    ? 'firstlastframe'
+    : requestedGenerationMode === 'reference_image'
+      ? 'reference_image'
+      : 'normal'
   const model = pickFirstString([
     payload?.videoModel,
     payload?.modelId,
@@ -159,7 +165,6 @@ function buildVideoTaskInfo(taskType: TaskType, payload: AnyPayload): TaskBillin
     firstLastFramePayload.flModel,
   ])
   if (!model) return null
-  const generationOptions = toRecord(payload?.generationOptions)
   const resolution = readString(generationOptions.resolution) || readString(payload?.resolution)
   const duration = readNumber(generationOptions.duration) ?? readNumber(payload?.duration)
   const aspectRatio = readString(generationOptions.aspectRatio) || readString(payload?.aspectRatio)

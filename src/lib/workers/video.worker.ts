@@ -22,7 +22,7 @@ import { getProviderConfig } from '@/lib/api-config'
 type AnyObj = Record<string, unknown>
 type VideoOptionValue = string | number | boolean
 type VideoOptionMap = Record<string, VideoOptionValue>
-type VideoGenerationMode = 'normal' | 'firstlastframe'
+type VideoGenerationMode = 'normal' | 'firstlastframe' | 'reference_image'
 type PanelRecord = NonNullable<Awaited<ReturnType<typeof prisma.novelPromotionPanel.findUnique>>>
 
 function toDurationMs(value: number | null | undefined): number | undefined {
@@ -108,7 +108,12 @@ async function generateVideoForPanel(
   const sourceImageBase64 = await normalizeToBase64ForGeneration(sourceImageUrl)
 
   let lastFrameImageBase64: string | undefined
-  const generationMode: VideoGenerationMode = firstLastFramePayload ? 'firstlastframe' : 'normal'
+  const requestedGenerationMode = generationOptions.generationMode
+  const generationMode: VideoGenerationMode = firstLastFramePayload
+    ? 'firstlastframe'
+    : requestedGenerationMode === 'reference_image'
+      ? 'reference_image'
+      : 'normal'
   const requestedGenerateAudio = typeof generationOptions.generateAudio === 'boolean'
     ? generationOptions.generateAudio
     : undefined

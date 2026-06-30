@@ -287,4 +287,42 @@ describe('worker video processor behavior', () => {
 
     await expect(processor!(unsupportedJob)).rejects.toThrow('Unsupported video task type')
   })
+
+  it('VIDEO_PANEL: preserves reference image generation mode for image-guided video', async () => {
+    const processor = workerState.processor
+    expect(processor).toBeTruthy()
+
+    const job = buildJob({
+      type: TASK_TYPE.VIDEO_PANEL,
+      payload: {
+        videoModel: 'openai-compatible:oa-1::seedance-2-fast',
+        generationOptions: {
+          generationMode: 'reference_image',
+          duration: 8,
+          resolution: '720p',
+        },
+      },
+    })
+
+    await processor!(job)
+
+    expect(utilsMock.resolveVideoSourceFromGeneration).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        modelId: 'openai-compatible:oa-1::seedance-2-fast',
+        options: expect.objectContaining({
+          duration: 8,
+          generationMode: 'reference_image',
+          resolution: '720p',
+        }),
+      }),
+    )
+    expect(prismaMock.novelPromotionPanel.update).toHaveBeenCalledWith({
+      where: { id: 'panel-1' },
+      data: {
+        videoUrl: 'cos/lip-sync/video.mp4',
+        videoGenerationMode: 'reference_image',
+      },
+    })
+  })
 })

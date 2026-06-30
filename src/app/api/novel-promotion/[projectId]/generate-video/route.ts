@@ -16,6 +16,8 @@ import {
 import { resolveBuiltinPricing } from '@/lib/model-pricing/lookup'
 import { resolveProjectModelCapabilityGenerationOptions } from '@/lib/config-service'
 
+type VideoGenerationMode = 'normal' | 'firstlastframe' | 'reference_image'
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
@@ -32,9 +34,11 @@ function toVideoRuntimeSelections(value: unknown): Record<string, CapabilityValu
   return selections
 }
 
-function resolveVideoGenerationMode(payload: unknown): 'normal' | 'firstlastframe' {
+function resolveVideoGenerationMode(payload: unknown): VideoGenerationMode {
   if (!isRecord(payload)) return 'normal'
-  return isRecord(payload.firstLastFrame) ? 'firstlastframe' : 'normal'
+  if (isRecord(payload.firstLastFrame)) return 'firstlastframe'
+  const generationOptions = isRecord(payload.generationOptions) ? payload.generationOptions : null
+  return generationOptions?.generationMode === 'reference_image' ? 'reference_image' : 'normal'
 }
 
 function isSeedance2Model(modelKey: string): boolean {

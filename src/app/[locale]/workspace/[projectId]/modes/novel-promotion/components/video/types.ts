@@ -13,7 +13,7 @@ export interface VideoModelOption {
   videoPricingTiers?: VideoPricingTier[]
 }
 
-export type VideoGenerationMode = 'normal' | 'firstlastframe'
+export type VideoGenerationMode = 'normal' | 'firstlastframe' | 'reference_image'
 
 export interface TextPanel {
   panel_number: number

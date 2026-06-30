@@ -71,6 +71,23 @@ describe('billing/task-policy', () => {
     expect(info.quantity).toBe(1)
   })
 
+  it('keeps reference image mode in video billing metadata', () => {
+    const info = expectBillableInfo(buildDefaultTaskBillingInfo(TASK_TYPE.VIDEO_PANEL, {
+      videoModel: 'openai-compatible:oa-1::seedance-2-fast',
+      generationOptions: {
+        generationMode: 'reference_image',
+        duration: 8,
+        resolution: '720p',
+      },
+    }))
+
+    expect(info.metadata).toMatchObject({
+      generationMode: 'reference_image',
+      duration: 8,
+      resolution: '720p',
+    })
+  })
+
   it('uses explicit lip sync model from payload', () => {
     const info = expectBillableInfo(buildDefaultTaskBillingInfo(TASK_TYPE.LIP_SYNC, {
       lipSyncModel: 'vidu::vidu-lipsync',

@@ -142,6 +142,43 @@ describe('model-gateway openai-compat template renderer', () => {
     }))
   })
 
+  it('renders Seedance reference image mode as reference_image content', async () => {
+    const request = await buildRenderedTemplateRequest({
+      baseUrl: 'https://seedance.example.com/v1',
+      endpoint: {
+        method: 'POST',
+        path: '/videos',
+        contentType: 'application/json',
+        bodyTemplate: {
+          model: '{{model}}',
+          prompt: '{{prompt}}',
+          content: '{{content}}',
+        },
+      },
+      variables: buildTemplateVariables({
+        model: 'seedance-2-fast',
+        prompt: 'keep the anime style',
+        image: 'data:image/png;base64,AAAA',
+        extra: {
+          generationMode: 'reference_image',
+        },
+      }),
+      defaultAuthHeader: 'Bearer sk-test',
+    })
+
+    expect(request.body).toBe(JSON.stringify({
+      model: 'seedance-2-fast',
+      prompt: 'keep the anime style',
+      content: [
+        {
+          type: 'image_url',
+          role: 'reference_image',
+          image_url: { url: 'data:image/png;base64,AAAA' },
+        },
+      ],
+    }))
+  })
+
   it('deduplicates /v1 prefix when base url already ends with /v1', async () => {
     const request = await buildRenderedTemplateRequest({
       baseUrl: 'https://yunwu.ai/v1',

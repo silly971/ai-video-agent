@@ -93,7 +93,6 @@ describe('worker utils video generation resume', () => {
   })
 
   it('prevents duplicate panel candidates by skipping task externalId resume when requested', async () => {
-    prismaMock.task.findUnique.mockResolvedValueOnce({ externalId: 'FAL:IMAGE:fal-ai/nano-banana-pro:req_1' })
     generatorApiMock.generateImage.mockResolvedValueOnce({
       success: true,
       imageUrl: 'https://fal.test/new-image.png',
@@ -113,5 +112,38 @@ describe('worker utils video generation resume', () => {
     expect(prismaMock.task.findUnique).not.toHaveBeenCalled()
     expect(asyncPollMock.pollAsyncTask).not.toHaveBeenCalled()
     expect(generatorApiMock.generateImage).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes reference image generation mode into fresh video submissions', async () => {
+    prismaMock.task.findUnique.mockResolvedValueOnce({ externalId: null })
+    generatorApiMock.generateVideo.mockResolvedValueOnce({
+      success: true,
+      videoUrl: 'https://provider.example/video.mp4',
+    })
+
+    const result = await resolveVideoSourceFromGeneration(buildJob(), {
+      userId: 'user-1',
+      modelId: 'openai-compatible:oa-1::seedance-2-fast',
+      imageUrl: 'data:image/png;base64,QQ==',
+      options: {
+        prompt: 'keep the anime style',
+        generationMode: 'reference_image',
+        duration: 8,
+        resolution: '720p',
+      },
+    })
+
+    expect(result).toEqual({ url: 'https://provider.example/video.mp4' })
+    expect(generatorApiMock.generateVideo).toHaveBeenCalledWith(
+      'user-1',
+      'openai-compatible:oa-1::seedance-2-fast',
+      'data:image/png;base64,QQ==',
+      expect.objectContaining({
+        duration: 8,
+        generationMode: 'reference_image',
+        prompt: 'keep the anime style',
+        resolution: '720p',
+      }),
+    )
   })
 })

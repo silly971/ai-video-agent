@@ -7,6 +7,7 @@ import type {
   VideoPanel,
 } from '@/app/[locale]/workspace/[projectId]/modes/novel-promotion/components/video'
 import {
+  type EffectiveVideoCapabilityDefinition,
   normalizeVideoGenerationSelections,
   resolveEffectiveVideoCapabilityDefinitions,
   resolveEffectiveVideoCapabilityFields,
@@ -35,6 +36,20 @@ function parseByOptionType(
 
 function toFieldLabel(field: string): string {
   return field.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase())
+}
+
+function filterFirstLastFrameGenerationModeDefinitions(
+  definitions: EffectiveVideoCapabilityDefinition[],
+): EffectiveVideoCapabilityDefinition[] {
+  return definitions
+    .map((definition) => {
+      if (definition.field !== 'generationMode') return definition
+      return {
+        ...definition,
+        options: definition.options.filter((option) => option === 'firstlastframe'),
+      }
+    })
+    .filter((definition) => definition.field !== 'generationMode' || definition.options.length > 0)
 }
 
 interface UseVideoFirstLastFrameFlowParams {
@@ -117,10 +132,12 @@ export function useVideoFirstLastFrameFlow({
     [selectedFlModelOption?.videoPricingTiers],
   )
   const flCapabilityDefinitions = useMemo(
-    () => resolveEffectiveVideoCapabilityDefinitions({
-      videoCapabilities: selectedFlModelOption?.capabilities?.video,
-      pricingTiers: flPricingTiers,
-    }),
+    () => filterFirstLastFrameGenerationModeDefinitions(
+      resolveEffectiveVideoCapabilityDefinitions({
+        videoCapabilities: selectedFlModelOption?.capabilities?.video,
+        pricingTiers: flPricingTiers,
+      }),
+    ),
     [flPricingTiers, selectedFlModelOption?.capabilities?.video],
   )
 

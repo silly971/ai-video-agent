@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { VideoModelOption, VideoGenerationOptionValue, VideoGenerationOptions } from '../../../types'
 import type { CapabilitySelections } from '@/lib/model-config-contract'
 import {
+  type EffectiveVideoCapabilityDefinition,
   normalizeVideoGenerationSelections,
   resolveEffectiveVideoCapabilityDefinitions,
   resolveEffectiveVideoCapabilityFields,
@@ -27,6 +28,22 @@ interface CapabilityField {
 
 function toFieldLabel(field: string): string {
   return field.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase())
+}
+
+function filterNormalVideoGenerationModeDefinitions(
+  definitions: EffectiveVideoCapabilityDefinition[],
+): EffectiveVideoCapabilityDefinition[] {
+  return definitions
+    .map((definition) => {
+      if (definition.field !== 'generationMode') return definition
+      return {
+        ...definition,
+        options: definition.options.filter((option) =>
+          option === 'normal' || option === 'reference_image',
+        ),
+      }
+    })
+    .filter((definition) => definition.field !== 'generationMode' || definition.options.length > 0)
 }
 
 function parseByOptionType(
@@ -100,10 +117,12 @@ export function usePanelVideoModel({
   }, [selectedModel, videoModelOptions])
 
   const capabilityDefinitions = useMemo(
-    () => resolveEffectiveVideoCapabilityDefinitions({
-      videoCapabilities: selectedOption?.capabilities?.video,
-      pricingTiers,
-    }),
+    () => filterNormalVideoGenerationModeDefinitions(
+      resolveEffectiveVideoCapabilityDefinitions({
+        videoCapabilities: selectedOption?.capabilities?.video,
+        pricingTiers,
+      }),
+    ),
     [pricingTiers, selectedOption?.capabilities?.video],
   )
 
